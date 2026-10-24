@@ -1,6 +1,6 @@
 # T02 · 配置与存储
 
-- **子任务状态**：🔄 进行中（2026-10-24 开工，无人值守会话）
+- **子任务状态**：⏸️ 已暂停（2026-10-25：F1/F2/F4/F5/F6 已 ✅；仅剩 F3 的命令字段深度校验依赖 T03 启动命令解析器，按本文件预授权路径延期。恢复前提：T03 解析器完成 → 接入 Validate → F3 整点验收 → 子任务 ✅）
 - **前置依赖**：T01
 - **设计依据**：[design.md](../design/design.md) §5（数据模型与配置）、§10（安全）、D8（命名规则）
 - **产物范围**：`internal/config/`、data 目录布局、api-token 与 daemon.json 读写
@@ -65,8 +65,8 @@
 
 ### F6 · daemon.json（pid/port 元数据）
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：提供 daemon 元数据读写：启动时写 `{pid, port}`，正常退出时清理；读取方（CLI 惰性拉起 T06 用）读到 stale 记录（pid 不存活）视为无 daemon。进程被强杀留下的 stale 文件场景要能自愈（读时校验，不崩溃）。
 - **验收要点**：
   - 单测：写/读/清理 roundtrip；pid 不存在时判定 stale；
@@ -85,6 +85,7 @@
 | 2026-10-24 | F2 | ✅ | 实跑 `go test ./internal/config/ -v` 10 用例全 PASS：结构体默认值断言（bind 127.0.0.1/port 0/log 50/7/platform nil）；读写 roundtrip 深比较相等（含中文名、命令内引号、反斜杠）；缺省段（platform 未配 nil、restart 未配默认开+exponential、poll_interval 缺省 60s、autostart 缺省 false）；坏 TOML 错误含行号；MarshalTOML 含中文节注释头/缩进/引号转义；Save 无 tmp 残留 |
 | 2026-10-24 | F4 | ✅ | 实跑 `go test ./internal/config/ -run 'Reload|去抖|真实文件' -v` 全 PASS：改文件→订阅者收到 port=200/300 新配置（含真实 fsnotify 端到端，原子替换写法）；坏 TOML 与校验错（bind 0.0.0.0）→ Current 保留旧值 + OnError 收到 2 条事件；150ms 去抖窗内 5 个连续写事件仅重载 1 次、新事件再重载；同目录 .tmp/无关文件事件 0 次重载 |
 | 2026-10-25 | F5 | ✅ | 实跑 `go test ./internal/config/ -run Token -v` 4 用例 PASS：首次生成匹配 `^[0-9a-f]{64}$`（32 字节熵）且两次生成不同、落盘与返回值一致；预置 token 二次读取原样复用不重生成；非 Windows 断言文件权限 0600；空文件触发生成。`GOOS=windows go build ./...` 通过（icacls 分支存在） |
+| 2026-10-25 | F6 | ✅ | 实跑 `go test ./internal/config/ -run DaemonInfo -v` 3 用例 PASS：写当前 pid→读出存活且值相等→清理后无文件且重复清理 no-op；pid=4194300 判定 stale（running=false 但记录可读）；非 JSON 损坏文件读取不报错、按无 daemon 处理且文件自愈删除（pid=0 同）。`GOOS=windows/darwin go build` 均通过 |
 
 ## 变更记录
 
@@ -100,3 +101,5 @@
 | 2026-10-24 | F4 选型：fsnotify + 监视目录 | fsnotify v1.10.1；监视 config.toml 所在**目录**而非文件（Save 走 tmp+rename 原子替换，直接监视文件会丢 inode），按 basename 过滤事件（.tmp 事件天然忽略）。去抖默认 200ms 静默窗口（编辑器写一半/重复触发合并为一次重载）。错误事件出口为 OnError 回调（无注册时打 stderr），T04 事件日志完成后接入 |
 | 2026-10-24 | F4 ✅ | Watcher（Reload 语义/去抖/真实监视端到端）单测通过 |
 | 2026-10-25 | F5 ✅ | `config.APIToken`：crypto/rand 32 字节→64 hex、0600、复用不重生成；Windows 走 icacls 分支（token_windows.go，真机验证记 T10） |
+| 2026-10-25 | F6 ✅ | DaemonInfo 写/读/清理 + pid 存活探测（unix kill0 / windows OpenProcess）+ 损坏文件自愈 |
+| 2026-10-25 | 子任务 ⏸️ | F1/F2/F4/F5/F6 已 ✅；F3 命令字段校验待 T03 解析器（预授权路径），T03 完成后恢复收尾 |
