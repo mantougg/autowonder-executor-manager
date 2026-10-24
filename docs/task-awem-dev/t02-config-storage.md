@@ -28,8 +28,8 @@
 
 ### F2 · config.toml 模型与读写
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-24 自检）
 - **开发描述**：定义并实现 §5.2 全部结构：`[server]` bind/port（port=0 表示自动挑空闲端口写回，写回逻辑在 T06，本任务只保证字段语义）；`[platform]` base_url/mcp_token/poll_interval（可选段，缺省=平台联动整体禁用）；`[log]` max_size_mb=50/retention_days=7；`[[executor]]` name/command/autostart/`[executor.restart]` enabled/backoff（exponential：1s 起步 ×2 上限 5m，稳定 10m 重置——字段存策略，状态机在 T05）。读：容错解析 + 明确中文错误定位（行/条目）；写：人可读格式（缩进、节注释头）。
 - **验收要点**：
   - 结构体字段与 §5.2 一一对应，默认值一致；
@@ -82,6 +82,7 @@
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
 | 2026-10-24 | F1 | ✅ | 实跑 `go test ./internal/config/ -v` 3 用例 PASS：Layout 注入假目录断言 8 条路径；Linux 下 XDG_CONFIG_HOME 覆盖验证 Root=$XDG/awem（其余平台根目录由 os.UserConfigDir 标准库承担，§5.1 三平台表对应）；EnsureDir 创建 4 级目录树 + 默认 config.toml（中文注释头）、目录权限 0700 断言、二次调用不覆盖用户配置 |
+| 2026-10-24 | F2 | ✅ | 实跑 `go test ./internal/config/ -v` 10 用例全 PASS：结构体默认值断言（bind 127.0.0.1/port 0/log 50/7/platform nil）；读写 roundtrip 深比较相等（含中文名、命令内引号、反斜杠）；缺省段（platform 未配 nil、restart 未配默认开+exponential、poll_interval 缺省 60s、autostart 缺省 false）；坏 TOML 错误含行号；MarshalTOML 含中文节注释头/缩进/引号转义；Save 无 tmp 残留 |
 
 ## 变更记录
 
@@ -90,3 +91,6 @@
 | 2026-10-24 | 创建 | 由任务计划生成 |
 | 2026-10-24 | 开工 ⬜→🔄 | 无人值守开发会话继续（T01 完成后） |
 | 2026-10-24 | F1 ✅ | `config.Layout/DefaultLayout/EnsureDir`（路径单一入口）+ 默认模板，权限/幂等单测通过 |
+| 2026-10-24 | F2 选型：TOML 库 | **BurntSushi/toml v1.6.0**（读解析，成熟稳定、ParseError 自带行号）；**写入用手写序列化 `MarshalTOML`** 而非库 Encoder——需要中文节注释头、executor 缩进与字段全量落盘（roundtrip 稳定），Encoder 无法插入注释。Save 走临时文件+原子替换。依赖经 goproxy.cn 拉取（proxy.golang.org 网络不可达，已 `go env -w GOPROXY=https://goproxy.cn,direct`） |
+| 2026-10-24 | F2 选型：restart.enabled 语义 | `*bool` 区分"未配置"与"显式关闭"：未配置默认开启（design 决策 3"崩溃自动拉起…可关"→默认开），读入时归一化为非 nil，写回恒定全量字段 |
+| 2026-10-24 | F2 ✅ | 模型 + Load/Save/MarshalTOML，roundtrip/默认值/错误定位单测通过 |
