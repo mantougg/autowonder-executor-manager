@@ -1,6 +1,6 @@
 # awem 开发任务索引（task-awem-dev）
 
-- **总任务状态**：🔄 进行中 —— 9/11 子任务已检查，60/71 功能点已检查
+- **总任务状态**：🔄 进行中 —— 9/11 子任务 ✅、70/71 功能点已检查（余：T10 三个真机验证项 ⏸️、T11-F4 核对表待用户复核）
 - **计划依据**：[design.md](../design/design.md)（v1 定稿，2026-10-24）+ [AGENTS.md](../../AGENTS.md)
 - **计划生成**：2026-10-24，拆解为 11 个子任务、71 个功能点
 - **执行方式**：用 `awem-dev` 技能（仓库 `.agents/skills/awem-dev/`）说"继续 awem 开发/执行 T0X/检查 T0X"；或按 [conventions.md](conventions.md) §7–8 的流程手动执行与更新状态。
@@ -30,7 +30,7 @@
 | T06 | daemon 与本地 API | T02、T04、T05 | 7/7 | ✅ 已检查 | [t06-daemon-api.md](t06-daemon-api.md) |
 | T07 | CLI 子命令集 | T03、T05、T06 | 10/10 | ✅ 已检查 | [t07-cli.md](t07-cli.md) |
 | T08 | 平台状态联动（只读） | T02、T03、T06 | 6/6 | ✅ 已检查 | [t08-platform-sync.md](t08-platform-sync.md) |
-| T09 | Web SPA | T03、T06、T08 | 1/8 | 🔄 进行中 | [t09-web-spa.md](t09-web-spa.md) |
+| T09 | Web SPA | T03、T06、T08 | 8/8 | ✅ 已检查 | [t09-web-spa.md](t09-web-spa.md) |
 | T10 | 系统服务与跨平台专项 | T06、T07 | 3/6 | ⏸️ 已暂停（F3/F4/F5 待真机） | [t10-service-cross-platform.md](t10-service-cross-platform.md) |
 | T11 | 打包分发与 Agent 文档 | T01–T10 | 3/4 | ⏸️ F4 待用户复核 | [t11-release-docs.md](t11-release-docs.md) |
 
