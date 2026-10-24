@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"awem/internal/api"
 	"awem/internal/config"
 	"awem/internal/logs"
 	"awem/internal/platform"
@@ -33,6 +34,7 @@ type app struct {
 	watcher *config.Watcher
 	sup     *supervisor.Supervisor
 	plat    platform.Syncer
+	api     *api.Server // 本地 API（serve 阶段创建）
 
 	startedAt time.Time
 }
@@ -153,6 +155,9 @@ func (a *app) serve(ctx context.Context) error {
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 	a.startedAt = time.Now()
+	if a.api != nil {
+		a.api.SetStartedAt(a.startedAt)
+	}
 
 	select {
 	case <-ctx.Done():
@@ -170,10 +175,18 @@ func (a *app) serve(ctx context.Context) error {
 	}
 }
 
-// httpHandler 返回本地 API 的 HTTP 路由（REST/WS/静态资源与鉴权见 F3–F5/F7；
-// 此处为 F2 的占位骨架）。
+// httpHandler 组装本地 API 服务（REST + WS + 静态资源 + 鉴权）。
 func (a *app) httpHandler() http.Handler {
-	return http.NewServeMux()
+	a.api = api.New(api.Options{
+		Paths:   a.paths,
+		Token:   a.token,
+		Logs:    a.logs,
+		Sup:     a.sup,
+		Watcher: a.watcher,
+		Plat:    a.plat,
+		Port:    a.cfg.Server.Port,
+	})
+	return a.api.Handler()
 }
 
 // close 释放全部组件（defer 调用，幂等由各组件保证）。

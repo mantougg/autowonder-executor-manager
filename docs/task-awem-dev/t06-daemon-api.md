@@ -38,8 +38,8 @@
 
 ### F3 · REST API（执行器与设置全集）
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：实现资源化路由（标准库 `net/http` 或轻量路由，选型记录）：`GET /api/executors`（含本地状态/平台状态占位/漂移占位）、`POST /api/executors`（add：body 为整条命令 + 开关，服务端调 T03 解析与 T02 校验，错误逐字段返回）、`GET/PUT/DELETE /api/executors/{name}`（PUT 为结构化编辑，DELETE 支持 purge 参数；删除运行中的先停——语义与确认归 CLI/Web 层，API 层 stop 参数化）、`POST /api/executors/{name}/start|stop|restart`、`GET /api/executors/{name}/log?tail=N&follow=0`（非流式拉取）、`GET /api/status`（daemon 版本/uptime/平台连接占位）、`GET/PUT /api/settings`（platform/log 段读写）、`POST /api/reload`（手动触发热加载）。错误响应统一 JSON：`{"error":{"code":"…","message":"…","field":"…"}}`。
 - **验收要点**：
   - httptest 单测覆盖每个路由的正常 + 主要错误路径（404 名称不存在、401 未带 token、409 已存在）；
@@ -93,6 +93,7 @@
 |---|---|---|---|
 | 2026-10-25 | F1 | ✅ 通过 | 实跑 `go test ./internal/daemon/ -count=1`（4 用例全过）：TestDaemon单实例与重启（第二实例非零退出且报错含 port 18765 与 pid；kill -9 后锁随进程释放可重启，daemon.json 更新为新 pid；SIGTERM 优雅退出后 daemon.json 清理）、TestDaemon启动时配置无效拒绝运行、TestDaemon事件日志记录启停（events.log 含 daemon_start/daemon_stop）、TestLock互斥与释放；GOOS=windows/darwin 交叉编译通过。开发中修复：AWEM_CONFIG_DIR 曾被当作 userConfigDir 追加一层 awem/，语义改为直接作为根目录（见变更记录）。 |
 | 2026-10-25 | F2 | ✅ 通过 | 实跑 `go test ./internal/daemon/ ./internal/config/ -count=1`：TestListen端口零自动写回与roundtrip（port=0 → 实际端口写回 config.toml；executor/platform 段保留；磁盘内容 == Load 后再序列化，格式稳定；监听地址断言 127.0.0.1）、TestListen固定端口不写回、TestDaemon自动端口写回与二次启动（真实二进制：daemon.json 记实际端口、二次启动复用该端口、端口可连接；写回触发的文件监视重载被抑制——events.log 无 config_changed）、config 包 TestReload内容未变跳过发布（等价重载 ReloadCount=1/PublishedCount=0；SetCurrent 后等价跳过；真实变更发布 port=9090）。全仓三绿。 |
+| 2026-10-25 | F3 | ✅ 通过 | 实跑 `go test ./internal/api/ -count=1`（15 用例全过，fakeproc 真子进程）：401 矩阵（无 token/错 token，code=unauthorized）、列表+token 掩码断言（不含明文、含 ***、platform null 占位）、单条 404 not_found、add 全链路（201 → config.toml 落盘 → start=true 后 local.state=running 真子进程）、add 已存在 409 already_exists（field=name）、add 命令逐字段错误（code=invalid_command，field 含 executor-id 与 token）、invalid_name/bad_request、PUT 字段编辑（model 改后命令重建、token 原值保留、--token-aware-enable 不丢）与整条替换、PUT 掩码 token 不覆盖、动作 start/stop/restart（running→stopped 状态断言、start 幂等、404）、DELETE 运行中 409 code=running → stop=true 成功删除（配置移除断言）、purge 删日志文件断言、log tail=3 尾部行、status 字段、settings 掩码回显/掩码保留/platform null 删除段/非法 poll_interval 400/落盘明文、reload 后新增执行器可见、8 并发 add 全部落盘。三绿 + windows/darwin 交叉编译。 |
 
 ## 变更记录
 
@@ -103,3 +104,4 @@
 | 2026-10-25 | F1 实现 + 选型记录 | **单实例锁方案**：独占文件锁 `data/daemon.lock`——Unix 用 `syscall.Flock`、Windows 用 `golang.org/x/sys/windows.LockFileEx`（标准库 syscall 无此 API，go.mod 已依赖 x/sys）；锁绑定 fd，进程退出（含 kill -9）由内核释放，无需陈锁清理。**daemon 装配**：`internal/daemon` 包 `Run(ctx)`（EnsureDir→锁→Load+Validate 拒无效→APIToken→logs.Manager→Watcher+Supervisor 订阅→WriteDaemonInfo→等 ctx→优雅收口）；`awem daemon` 子命令前台入口（signal.NotifyContext 接 SIGINT/SIGTERM）；platform 包新增 `Syncer` 接口 + `Noop` 空实现（T08 替换）。**实现细节**：新增环境变量 `AWEM_CONFIG_DIR`（值直接作为 awem 根目录，不追加 awem/；测试隔离与多实例冒烟用，config.At(root) 构造函数配套）；启动时配置无效 → daemon 拒绝启动（区别于热加载的"保留旧配置"）；daemon.json 写失败不致命（记事件）。集成测试编译真实二进制运行（build tag !windows）。 |
 | 2026-10-25 | F1 ✅ | 验收要点实跑通过（见检查记录），4 用例 + 交叉编译三绿 |
 | 2026-10-25 | F2 实现 + 选型记录 | **写回路径**：`listenWithWriteBack`（internal/daemon/listen.go）——net.Listen 后 port=0 时取实际端口 `config.Save` 结构化写回（注释头与全量字段保留；写回失败不阻塞启动，记事件）。**写回抑制方案**：Watcher.Reload 成功路径增加"与当前内存配置 reflect.DeepEqual 则跳过发布"（不产生订阅回调与 config_changed 事件）；配套 `Watcher.SetCurrent`（daemon 自我写盘后同步内存，不发布）与 `PublishedCount` 观测。daemon 主循环升级：监听→写回→SetCurrent→daemon.json 记实际端口→daemon_start 事件→http.Server.Serve→ctx 取消 5s 宽限 Shutdown；`go watcher.Start(ctx)` 文件监视热加载自此常驻。 |
+| 2026-10-25 | F3 实现 + API 契约定稿 | **路由选型**：标准库 `net/http.ServeMux` 方法模式（Go 1.22+，零第三方依赖）。**错误 schema**：`{"error":{"code","message","field"}}`，field 恒存在（缺省空串）；code→HTTP：bad_request/invalid_name/invalid_command/invalid_config→400，unauthorized→401，forbidden→403，not_found→404，already_exists/running→409，internal→500。**路由全集**：GET/POST /api/executors、GET/PUT/DELETE /api/executors/{name}（DELETE 参数 stop/purge，运行中不 stop=true 则 409 code=running；先停进程再删配置）、POST …/start|stop|restart、GET …/log?tail=N、GET /api/status、GET/PUT /api/settings、POST /api/reload。**视图 schema**（T07/T09 依赖）：executor 视图 = name/command/autostart/workspace_root/restart/parsed/local/platform(null 占位)/drift(null 占位)；parsed.token 恒掩码（logs.MaskSecret）；掩码提交=未修改（token/mcp_token 同语义）；local 含 state/pid/started_at(RFC3339)/uptime_ms/restarts/backoff_delay_ms/conn/last_exit。**写路径**：`mutateConfig` 串行（mutex）"读当前→改→Validate→Save→Watcher.Reload 同步发布"（API 写与热加载共用发布入口）；add 支持 start=true 显式启动。**实现细节**：settings PUT 的日志滚动参数落盘即时、对已打开文件下次 daemon 启动生效；PUT fields 值字段用指针区分"未提交/清空"；请求体限 1MB。测试用 fakeproc（自 supervisor 包 testdata 复制，跨包 testdata 不可引用）。 |
