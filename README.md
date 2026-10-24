@@ -59,12 +59,23 @@ docs/            # design / plan / requirements / task-awem-dev
 .agents/skills/  # awem-dev 技能（按任务计划推进开发用）
 ```
 
-## 开发
+## 开发者快速开始
+
+环境要求：Go ≥ 1.26（当前稳定版）、make；前端阶段（T09）另需 Node.js ≥ 20。
 
 ```bash
-make build   # 构建单二进制（含 web 前端）
-make test    # 单元测试 + 假长驻子进程冒烟测试
+make build                 # 构建单二进制 ./awem（自动注入版本号；web/ 未建时用占位页）
+make build VERSION=v0.1.0  # 指定版本号构建（ldflags 注入，awem version 可见）
+make test                  # go test 全量（单元 + 假长驻子进程冒烟）
+make vet                   # go vet 静态检查
+make clean                 # 清理构建产物
 ```
+
+说明：
+
+- 提交前三绿：`go build ./... && go vet ./... && go test ./...`（或 `make build test vet`）。
+- `web/dist/` 约定**构建时生成、仓库忽略**：`make build` 会在缺失时从 `web/placeholder/`
+  复制占位页，保证 fresh clone 可直接构建；`go:embed` 不读取 .gitignore，本地存在即可嵌入。
 
 工程约定：注释与文档中文、标识符英文；**实现与设计冲突时，先改设计文档、征得同意、再改代码**；测试不依赖真实平台与 npx（假长驻子进程）。详见 [AGENTS.md](AGENTS.md)。
 

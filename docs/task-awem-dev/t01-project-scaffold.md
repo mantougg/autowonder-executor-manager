@@ -48,8 +48,8 @@
 
 ### F4 · Makefile 与开发工作流
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-24 自检）
 - **开发描述**：`Makefile` 目标：`build`（含 web 前端构建钩子，`web/` 未建时跳过并提示）、`test`（go test 全量）、`vet`、`clean`；版本注入变量（`-ldflags "-X …version=…"`）预留。README 增补"开发者快速开始"一节（中文：环境要求 Go ≥ 当前稳定版、make build/test）。
 - **验收要点**：
   - `make build` 产出可执行 `awem`，`make test`/`make vet` 绿；
@@ -76,6 +76,7 @@
 | 2026-10-24 | F1 | ✅ | 实跑 `go mod init awem` 后 `go build ./... && go vet ./... && go test ./...` 三绿（输出 no test files，无报错）；目录树与 design.md §16 一致（cmd/awem + internal/{config,launchcmd,logs,supervisor,platform,api,cli} 各含中文包注释 doc.go，web/ 含占位页）；变更记录已含 module 名与 dist 策略选型 |
 | 2026-10-24 | F2 | ✅ | 实测真实二进制：`awem version`→`awem 0.0.0-dev`、`awem --json version`→`{"version":"0.0.0-dev"}`；`awem 不存在命令`与无参数均退出码 2 且输出中文用法；`awem add`（占位）→`错误：子命令 "add" 尚未实现` 退出码 1；单测 `go test ./internal/cli/ -v` 全 PASS（含全局 flag 透传、`--flag=false` 形式、退出码用例） |
 | 2026-10-24 | F3 | ✅ | 单测 `go test ./internal/exitcode/ ./internal/cli/` 全 PASS：常量断言 0/1/2/3/4/5 与 design.md §8.2 一致；5 种构造器 → Code()/Type() 映射、Wrap+嵌套 errors.As 穿透、裸错误回退 1 均有用例；捕获 stdout 验证 writeError JSON 输出合法可解析；实测二进制 `awem --json 不存在命令`→`{"error":{"code":2,…,"type":"usage"}}` 退出码 2、`awem --json add`→code 1 |
+| 2026-10-24 | F4 | ✅ | 实跑：`make build VERSION=v0.0.1-accept` 产出 `./awem` 且 `awem version`→`awem v0.0.1-accept`（ldflags 注入生效）；`make test`、`make vet` 退出码 0；`make clean` 后二进制消失；删除 web/dist/ 再 `make build` 自动从 web/placeholder/ 重建占位页；README 增补"开发者快速开始"一节（环境要求 + make 目标 + dist 策略说明） |
 
 ## 变更记录
 
@@ -90,3 +91,4 @@
 | 2026-10-24 | F2 ✅ | 分发框架 + version 子命令 + 13 个占位命令，验收通过 |
 | 2026-10-24 | F3 选型：包位置 | 独立 `internal/exitcode` 包（非放 internal/cli）。理由：internal/api、supervisor 等非 CLI 层也要构造带退出码语义的错误，独立包避免反向依赖 CLI 框架。错误类型 `*exitcode.Error{Code,msg,Err}` + 构造器（Usagef/NotFoundf/AlreadyExistsf/DaemonNotRunningf/Generalf/Wrap）+ `Code(err)`/`Type(err)` 提取；--json 错误 schema 定为 `{"error":{"code":N,"type":"…","message":"…"}}`（type 为机器可读名：general/usage/not_found/already_exists/daemon_not_running，只增不改） |
 | 2026-10-24 | F3 ✅ | 退出码常量 + 错误类型 + Dispatch 集成，单测与实测通过 |
+| 2026-10-24 | F4 ✅ | Makefile（build/test/vet/clean + web-dist 钩子 + VERSION ldflags）与 README 开发者快速开始 |
