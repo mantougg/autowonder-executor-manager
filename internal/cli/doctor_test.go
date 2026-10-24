@@ -19,6 +19,23 @@ func withDoctorEnv(t *testing.T, dd doctorDeps) {
 	t.Cleanup(func() { doctorEnv = old })
 }
 
+// withGreenDoctorEnv 注入"全绿"体检环境（node/npx/qoder 皆可得、磁盘充足）。
+// 预置了 qoder 执行器的测试用例必须注入它——宿主未必装 qoder CLI
+// （CI 首次发布即因此挂质量门），测试不得依赖宿主环境。
+func withGreenDoctorEnv(t *testing.T) {
+	t.Helper()
+	withDoctorEnv(t, doctorDeps{
+		lookupPath: func(name string) (string, error) { return "/fake/" + name, nil },
+		runVersion: func(cmd string, args ...string) (string, error) {
+			if cmd == "node" {
+				return "v22.0.0", nil
+			}
+			return "", nil
+		},
+		statFree: func(string) (uint64, error) { return 99 << 30, nil },
+	})
+}
+
 func TestDoctor本机全项输出(t *testing.T) {
 	e := newCLIEnv(t) // 无执行器 → provider CLI 走跳过分支
 	if code := e.run(false, "doctor"); code != exitcode.Success {

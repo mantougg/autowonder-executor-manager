@@ -13,6 +13,8 @@ import (
 // Test退出码矩阵 每命令 × 成功/用法错/未找到/已存在/daemon 不可达。
 // daemon 不可达（5）由 daemon 包 TestCLI惰性拉起daemon 场景④覆盖（真二进制）。
 func Test退出码矩阵(t *testing.T) {
+	// 预置了 qoder 执行器 → doctor 的 provider 检查注入绿环境（CI 无 qoder）
+	withGreenDoctorEnv(t)
 	e := newCLIEnv(t, config.Executor{Name: "mx", Command: validCommand})
 
 	cases := []struct {

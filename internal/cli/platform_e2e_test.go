@@ -151,6 +151,7 @@ func Test端到端平台状态与漂移展示(t *testing.T) {
 }
 
 func Test端到端撤下联动回本地态(t *testing.T) {
+	withGreenDoctorEnv(t) // doctor 断言退出 0：预置 qoder 执行器需注入绿环境
 	e := newCLIEnv(t, config.Executor{Name: "pe2", Command: validCommand})
 	fp := newFakePlatform(t)
 	e.attach(t, fp)
@@ -176,6 +177,7 @@ func Test端到端撤下联动回本地态(t *testing.T) {
 }
 
 func Test端到端Doctor平台三态(t *testing.T) {
+	withGreenDoctorEnv(t) // 同上：不依赖宿主 qoder
 	e := newCLIEnv(t, config.Executor{Name: "pd", Command: validCommand})
 	fp := newFakePlatform(t)
 	e.attach(t, fp)
