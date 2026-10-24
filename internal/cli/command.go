@@ -18,9 +18,9 @@ type GlobalFlags struct {
 // Command 描述一个可注册的子命令。Run 为 nil 表示"占位注册、尚未实现"，
 // 调用时统一报"未实现"并退出码 1。
 type Command struct {
-	Name    string                                  // 子命令名（如 version）
-	Summary string                                  // 一句话中文说明（用于 usage）
-	Usage   string                                  // 用法行（如 awem log <名称> [-f] [--lines N]）
+	Name    string                                   // 子命令名（如 version）
+	Summary string                                   // 一句话中文说明（用于 usage）
+	Usage   string                                   // 用法行（如 awem log <名称> [-f] [--lines N]）
 	Run     func(g GlobalFlags, args []string) error // 实际执行逻辑；报错须用 internal/exitcode 类型包装
 }
 

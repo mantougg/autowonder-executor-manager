@@ -1,5 +1,5 @@
 // clienv_test.go：CLI 子命令集测试环境（T07）。httptest 假 daemon
-//（api.New 直装配，含 fakeproc 真子进程能力），Deps 直连注入。
+// （api.New 直装配，含 fakeproc 真子进程能力），Deps 直连注入。
 package cli
 
 import (
@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 type cliEnv struct {
 	reg    *Registry
 	out    *bytes.Buffer
-	stdin  *strings.Reader   // 确认交互输入（每次调用前重置）
+	stdin  *strings.Reader // 确认交互输入（每次调用前重置）
 	p      config.Paths
 	mgr    *logs.Manager
 	sup    *supervisor.Supervisor
@@ -96,10 +96,12 @@ func newCLIEnv(t *testing.T, execs ...config.Executor) *cliEnv {
 	}
 	t.Cleanup(env.resetStdin)
 	RegisterCommands(env.reg, Deps{
-		Layout:  func() (config.Paths, error) { return p, nil },
-		Connect: func(context.Context) (*daemon.Client, error) { return daemon.NewClientAt(server.URL, "cli-test-token"), nil },
-		In:      env, // 实现 io.Reader：每次 run 前重置（见 resetStdin/Run）
-		Out:     env.out,
+		Layout: func() (config.Paths, error) { return p, nil },
+		Connect: func(context.Context) (*daemon.Client, error) {
+			return daemon.NewClientAt(server.URL, "cli-test-token"), nil
+		},
+		In:  env, // 实现 io.Reader：每次 run 前重置（见 resetStdin/Run）
+		Out: env.out,
 	})
 	return env
 }

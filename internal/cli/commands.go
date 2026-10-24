@@ -1,5 +1,5 @@
 // commands.go：CLI 子命令集的共享装配（T07）。全部数据操作走本地 API
-//（红线：不绕过 API 直改状态），依赖经 Deps 注入（生产真连 daemon，
+// （红线：不绕过 API 直改状态），依赖经 Deps 注入（生产真连 daemon，
 // 测试直连 httptest 假 daemon）。
 package cli
 
@@ -19,10 +19,10 @@ import (
 
 // Deps 是子命令集的可注入依赖。
 type Deps struct {
-	Layout  func() (config.Paths, error)             // 目录布局（默认 config.DefaultLayout）
+	Layout  func() (config.Paths, error)                      // 目录布局（默认 config.DefaultLayout）
 	Connect func(ctx context.Context) (*daemon.Client, error) // API 连接（默认 daemon.Connect 惰性拉起）
-	In      io.Reader                                 // 确认交互输入（默认 os.Stdin）
-	Out     io.Writer                                 // 正常输出（默认 os.Stdout）
+	In      io.Reader                                         // 确认交互输入（默认 os.Stdin）
+	Out     io.Writer                                         // 正常输出（默认 os.Stdout）
 }
 
 // DefaultDeps 返回生产依赖。
@@ -63,7 +63,8 @@ func RegisterCommands(r *Registry, d Deps) {
 	reg(cmdAction(d, "start"))
 	reg(cmdAction(d, "stop"))
 	reg(cmdAction(d, "restart"))
-	// 后续功能点逐个注册：edit/remove/log/import/doctor/reload
+	reg(cmdEdit(d))
+	// 后续功能点逐个注册：remove/log/import/doctor/reload
 }
 
 // printf 向 Deps.Out 输出。
@@ -75,7 +76,7 @@ func (d Deps) printf(format string, args ...any) {
 func (d Deps) out() io.Writer { return d.Out }
 
 // usagef/generalf 是 exitcode 构造器的薄包装（子命令文件统一入口）。
-func usagef(format string, args ...any) error { return exitcode.Usagef(format, args...) }
+func usagef(format string, args ...any) error   { return exitcode.Usagef(format, args...) }
 func generalf(format string, args ...any) error { return exitcode.Generalf(format, args...) }
 
 // confirm 交互确认：prompt 以"…[y/N]"结尾时输入 y/Y/是 才算确认。

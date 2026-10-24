@@ -30,10 +30,10 @@ func TestExtractGlobalFlags(t *testing.T) {
 			wantRest: []string{"list"},
 		},
 		{
-			name:    "子命令后",
-			argv:    []string{"list", "--json", "--yes"},
+			name:     "子命令后",
+			argv:     []string{"list", "--json", "--yes"},
 			wantJSON: true,
-			wantYes: true,
+			wantYes:  true,
 			wantRest: []string{"list"},
 		},
 		{
