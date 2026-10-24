@@ -25,7 +25,7 @@
 | T01 | 工程骨架与构建基础 | — | 5/5 | ✅ 已检查 | [t01-project-scaffold.md](t01-project-scaffold.md) |
 | T02 | 配置与存储 | T01 | 6/6 | ✅ 已检查 | [t02-config-storage.md](t02-config-storage.md) |
 | T03 | 启动命令解析与导入 | T01 | 6/6 | ✅ 已检查 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
-| T04 | 日志系统 | T01、T02 | 1/6 | 🔄 进行中 | [t04-logging.md](t04-logging.md) |
+| T04 | 日志系统 | T01、T02 | 2/6 | 🔄 进行中 | [t04-logging.md](t04-logging.md) |
 | T05 | Supervisor 进程守护 | T02、T03、T04 | 0/7 | ⬜ 未开始 | [t05-supervisor.md](t05-supervisor.md) |
 | T06 | daemon 与本地 API | T02、T04、T05 | 0/7 | ⬜ 未开始 | [t06-daemon-api.md](t06-daemon-api.md) |
 | T07 | CLI 子命令集 | T03、T05、T06 | 0/10 | ⬜ 未开始 | [t07-cli.md](t07-cli.md) |
@@ -82,3 +82,4 @@
 | 2026-10-25 | T02-F3 ✅ + 子任务 ✅ | F3 命令字段校验经 T03 解析器回填完成；T02 6/6 ✅（16/71） |
 | 2026-10-25 | T04 开工 | 子任务状态 ⬜→🔄 |
 | 2026-10-25 | T04-F1 ✅ | LogSink 收割管道，单测通过（1/6） |
+| 2026-10-25 | T04-F2 ✅ | 按大小滚动（编号链），单测通过（2/6） |
