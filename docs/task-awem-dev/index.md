@@ -22,7 +22,7 @@
 
 | 编号 | 子任务 | 前置依赖 | 功能点进度（已检查/总数） | 子任务状态 | 文档 |
 |---|---|---|---|---|---|
-| T01 | 工程骨架与构建基础 | — | 0/5 | ⬜ 未开始 | [t01-project-scaffold.md](t01-project-scaffold.md) |
+| T01 | 工程骨架与构建基础 | — | 1/5 | 🔄 进行中 | [t01-project-scaffold.md](t01-project-scaffold.md) |
 | T02 | 配置与存储 | T01 | 0/6 | ⬜ 未开始 | [t02-config-storage.md](t02-config-storage.md) |
 | T03 | 启动命令解析与导入 | T01 | 0/6 | ⬜ 未开始 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
 | T04 | 日志系统 | T01、T02 | 0/6 | ⬜ 未开始 | [t04-logging.md](t04-logging.md) |
@@ -59,3 +59,5 @@
 | 日期 | 动作 | 说明 |
 |---|---|---|
 | 2026-10-24 | 创建 | 依据 design.md v1 定稿拆解：11 子任务 / 71 功能点 |
+| 2026-10-24 | T01 开工 | 子任务状态 ⬜→🔄，无人值守开发会话开始 |
+| 2026-10-24 | T01-F1 ✅ | module 初始化与目录骨架，三绿通过（1/5） |

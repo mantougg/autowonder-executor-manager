@@ -2,6 +2,9 @@
 /awem
 /awem.exe
 /dist/
+
+# Web 前端：产物 web/dist/ 约定为"构建时生成、仓库忽略"
+# （占位页源文件在 web/placeholder/，Makefile build 会在缺失时复制过去）
 web/node_modules/
 web/dist/
 

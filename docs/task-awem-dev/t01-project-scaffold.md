@@ -1,6 +1,6 @@
 # T01 · 工程骨架与构建基础
 
-- **子任务状态**：⬜ 未开始
+- **子任务状态**：🔄 进行中（2026-10-24 开工，无人值守会话）
 - **前置依赖**：无（首个子任务）
 - **设计依据**：[design.md](../design/design.md) §4（总体架构）、§16（工程约定）、§8.2（退出码）
 - **产物范围**：`go.mod`、`cmd/awem/`、`internal/` 各包占位、`web/` 占位、`Makefile`
@@ -18,8 +18,8 @@
 
 ### F1 · Go module 与目录骨架
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-24 自检）
 - **开发描述**：`go mod init awem`（module 名 `awem`，本地无远程仓库路径；后续开源时改 import path 成本可控，理由记变更记录）。按 design.md §16 建目录：`cmd/awem/`（入口）、`internal/config/`、`internal/launchcmd/`（启动命令解析，T03 主场）、`internal/logs/`、`internal/supervisor/`、`internal/platform/`、`internal/api/`、`internal/cli/`，每个包放一个说明用途的中文包注释占位文件；`web/` 放 `dist/index.html` 占位。加 `.gitignore`（二进制、`web/node_modules/`、`web/dist/` 是否忽略取决于构建策略：embed 需要产物入库或构建时生成，**本点先约定"构建时生成、仓库忽略"并写进变更记录**）。
 - **验收要点**：
   - 目录结构与 design.md §16 一致，各包有中文包注释；
@@ -73,10 +73,14 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-10-24 | F1 | ✅ | 实跑 `go mod init awem` 后 `go build ./... && go vet ./... && go test ./...` 三绿（输出 no test files，无报错）；目录树与 design.md §16 一致（cmd/awem + internal/{config,launchcmd,logs,supervisor,platform,api,cli} 各含中文包注释 doc.go，web/ 含占位页）；变更记录已含 module 名与 dist 策略选型 |
 
 ## 变更记录
 
 | 日期 | 动作 | 说明 |
 |---|---|---|
 | 2026-10-24 | 创建 | 由任务计划生成 |
+| 2026-10-24 | 开工 ⬜→🔄 | 无人值守开发会话开始执行 T01 |
+| 2026-10-24 | F1 选型：module 名 | `go mod init awem`。选短名而非仓库名全路径：设计要求二进制/包名即 `awem`，本地无远程 module path；后续开源改 import path 仅涉及各 doc.go 无外部引用，成本可控（任务文档预留的方案） |
+| 2026-10-24 | F1 选型：web/dist 策略 | **构建时生成、仓库忽略**（.gitignore 忽略 web/dist/）。占位页源文件入库为 `web/placeholder/index.html`，Makefile build 在 `web/dist/` 缺失时自动复制占位页（F4 实现），保证 fresh clone 走 make 可构建；go:embed 不读 .gitignore，本地有 dist 即可嵌入（F5） |
+| 2026-10-24 | F1 ✅ | 目录骨架 + module 初始化完成，三绿通过 |
