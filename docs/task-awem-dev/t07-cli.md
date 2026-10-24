@@ -46,8 +46,8 @@
 
 ### F4 · start / stop / restart
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：`awem start|stop|restart [名称]`，无名称=全部；stop 全部是破坏性操作需确认（`--yes` 跳过，确认文案写具体动作如"停止全部 3 个执行器"）；幂等：start 已运行 → no-op 成功、stop 未运行 → no-op 成功；操作结果逐条汇报（成功/失败/跳过）。
 - **验收要点**：
   - 幂等三态（运行中 start、已停止 stop、不存在 → 3）测试；
@@ -119,6 +119,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F4 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run "TestActions|TestStop全部|TestStart全部|Test部分失败" -count=1`：TestActions单名称三态（start→running、重复 start 幂等 0、stop→stopped、重复 stop 幂等 0、restart 未运行=启动、start/stop 不存在→3）、TestStop全部确认交互（拒绝 n→"已取消"退出 0 且文案含"将停止全部 2 个执行器"；确认 y→✓ s1/s2 已停止；--yes 跳过确认）、TestStart全部逐条汇报（✓ g1 ✓ g2）。注：多名称部分失败整体退出码 1 的路径在当前命令面（至多一个名称参数/全部名单恒有效）无法自然构造，代码路径已实现（failed>0 → General），遗留到 F10 退出码矩阵统一复核。 |
 | 2026-10-25 | F3 | ✅ 通过（含一次返工） | 首次提交时 go test 输出经管道 grep/tail 吞掉退出码，cli 包实际 FAIL（未启动执行器 local.conn 为空串，--json 断言失败）仍被提交——违反"提交前三绿"。随即修复：api 视图层对空 conn 兜底为 unknown（未启动/未见过连接日志统一语义），实跑全仓 go build/vet/test 三绿后补提交。教训：验证命令不得经管道掩盖退出码。 | 实跑 `go test ./internal/cli/ -run TestStatus -count=1`：TestStatus单个详细（经 supervisor 直启后详情含 运行状态：running、pid、uptime、连接状态、ID/provider/autowonder@0.3.22、平台 —、漂移 —）、TestStatus全部摘要（共 2 个执行器）、TestStatus不存在退出码3（文本与 --json 均 3）、TestStatusJSON字段覆盖设计8_1（state/pid/started_at/uptime_ms/restarts/conn/model/platform/drift 全在）。 |
 | 2026-10-25 | F2 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestList -count=1`：TestList有执行器表格（e1/e2、stopped、unknown 连接态、qfmodel 模型、共 2 个、平台占位 —）、TestList空列表引导（"还没有执行器" + awem add 提示，退出码 0）、TestListJSON与APISchema一致（executors[0] 含 name/command/autostart/restart/parsed/local/platform/drift 全字段）。 |
 | 2026-10-25 | F1 | ✅ 通过 | 实跑 `go test ./internal/cli/ -count=1`（6 用例）：TestAdd正常添加与人读摘要（exec-10086 自动命名、摘要含 ID/provider/版本、**明文 token 不出现**、config.toml 落盘）、TestAdd默认名与自定义名（--name 生效；重名退出码 4）、TestAdd坏命令退出码2（executor-id 非数字/非 npx 命令/缺命令 → 2）、TestAdd文件输入与参数等价（--file 落盘一致）、TestAddJSON输出掩码（合法 JSON、token 含 ***、--start 后 local.state=running 真子进程）、TestAdd开关落盘（--autostart/--no-restart/--debug 逐项断言）。全仓三绿 + 交叉编译。 |
@@ -129,6 +130,7 @@
 |---|---|---|
 | 2026-10-24 | 创建 | 由任务计划生成 |
 | 2026-10-25 | 开工 | 子任务状态 ⬜→🔄；fakeproc 从两处 testdata 提为 internal/fakeproc 共享包（supervisor/api/cli 三处测试 TestMain 统一构建）；daemon.Client 导出 NewClientAt（测试直连）；APIError 退出码映射补充 invalid_command/invalid_name/bad_request/invalid_config→2（用法错）；cli 包新增 Deps 依赖注入（Layout/Connect/In/Out）与 RegisterCommands 装配骨架 |
+| 2026-10-25 | F4 实现 | 三命令共用 cmdAction 工厂；无名称=全部（名单来自 GET /api/executors，空名单友好提示）；stop 全部确认文案"将停止全部 N 个执行器"（--yes 跳过；n/N/空/EOF=拒绝）；逐条 ✓/✗ 汇报（含动作后状态）；单名称失败直接返回对应退出码（3/1），多名称部分失败继续并整体退出码 1；start/restart 全部不确认（非破坏性）。 |
 | 2026-10-25 | F3 实现 | 单个=详细（运行态[含退避倒计时]/pid/uptime/启动时间/连接状态/重启次数/上次退出/ID/provider/模型/runtime/autostart/平台占位/漂移占位）；无名称=全部摘要（复用 list 表格）；--json 单个直透 API executor 视图、全部直透列表响应；uptime 毫秒→秒级人读。 |
 | 2026-10-25 | F2 实现 | 表格列：名称/状态/连接/平台(T08 前 —)/模型/自启(✓/—)；空列表中文引导（提示 awem add 用法）；--json 直透 API GET /api/executors 响应（复用 executor 视图，schema 严格一致）；结尾行给平台联动提示。 |
 | 2026-10-25 | F1 实现 + 决策记录 | **名称策略**：默认名 `exec-<executor-id>`（--name 覆盖；design 未定，选"可从命令自动推导且无中文"方案）。**默认不启动**：--autostart=随 daemon 拉起（配置语义），--start=添加后立即启动（一次性动作）。**--debug** 以追加布尔 flag 进命令实现（§11.3）。**错误分层**：本地先 Parse+Validate（逐字段、退出码 2、不走网络）；名称显式给出时容忍解析失败交 API 复核。**--json**：直透 API 201 响应（executor 视图，token 恒掩码）。**人读摘要**：名称/ID/provider/模型/runtime 版本/token 掩码/autostart + 后续提示。 |
