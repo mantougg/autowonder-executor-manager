@@ -7,7 +7,9 @@
 package api
 
 import (
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -21,14 +23,14 @@ import (
 
 // Options 是 Server 的依赖注入（daemon 装配真身，测试注入替身）。
 type Options struct {
-	Paths     config.Paths
-	Token     string            // API 鉴权 token
-	Logs      *logs.Manager     // 日志读取（tail/follow）
-	Sup       *supervisor.Supervisor
-	Watcher   *config.Watcher   // 当前配置 + Reload 发布入口
-	Plat      platform.Syncer   // 平台状态（T08 前 Noop）
-	Port      int               // 实际监听端口（/api/status 展示）
-	Version   string            // 版本（空=internal/version）
+	Paths   config.Paths
+	Token   string        // API 鉴权 token
+	Logs    *logs.Manager // 日志读取（tail/follow）
+	Sup     *supervisor.Supervisor
+	Watcher *config.Watcher // 当前配置 + Reload 发布入口
+	Plat    platform.Syncer // 平台状态（T08 前 Noop）
+	Port    int             // 实际监听端口（/api/status 展示）
+	Version string          // 版本（空=internal/version）
 }
 
 // Server 是本地 API 服务；并发安全（写路径串行化）。
@@ -64,10 +66,29 @@ func (s *Server) Handler() http.Handler {
 
 // wsHandler 由 ws.go 提供（/ws/logs/{name}）。
 
-// auth 校验 token 头后转发（无/错 token 一律 401）。
-// Host/Origin 防 CSRF 校验在 F5 加固。
+// auth 是 /api/* 与 /ws/* 的统一中间件（F5）：先校验 Host/Origin 防 CSRF
+// （D4），再校验 token（无/错 token 一律 401）。
+//
+// Host 校验：剥离端口后必须为 127.0.0.1 / localhost / [::1]（API 仅回环，
+// 防止其他本机域名/外部地址到达数据接口）。
+// Origin 校验：空（curl/CLI/WS 某些客户端）通过；非空必须与请求 Host
+// 同源（浏览器发起的跨站请求全部拒绝——CSRF 的实际载体）。
 func (s *Server) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !checkHost(r.Host) {
+			writeAPIError(w, &apiError{
+				Status: http.StatusForbidden, Code: "forbidden",
+				Message: "请求 Host 必须为 127.0.0.1 / localhost / [::1]（本地 API 不对外）",
+			})
+			return
+		}
+		if origin := r.Header.Get("Origin"); origin != "" && !sameOrigin(origin, r.Host) {
+			writeAPIError(w, &apiError{
+				Status: http.StatusForbidden, Code: "forbidden",
+				Message: "跨源请求被拒绝（Origin " + origin + " 与 " + r.Host + " 不同源）",
+			})
+			return
+		}
 		if !s.checkToken(r) {
 			writeAPIError(w, &apiError{
 				Status: http.StatusUnauthorized, Code: "unauthorized",
@@ -77,6 +98,29 @@ func (s *Server) auth(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// checkHost 判定 Host（可含端口）是否为回环本机。
+func checkHost(host string) bool {
+	h := host
+	if hh, _, err := net.SplitHostPort(host); err == nil {
+		h = hh
+	}
+	switch h {
+	case "127.0.0.1", "localhost", "[::1]", "::1":
+		return true
+	}
+	return false
+}
+
+// sameOrigin 判定 Origin 头与请求 Host 是否同源（host:port 一致即同源；
+// scheme 本地恒 http(s)，不参与判定）。
+func sameOrigin(origin, host string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	return u.Host == host
 }
 
 // checkToken 提取并比对 token。头优先（Authorization: Bearer / X-Awem-Token）；
