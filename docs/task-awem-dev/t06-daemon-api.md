@@ -48,8 +48,8 @@
 
 ### F4 · WebSocket 日志实时流
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：`GET /ws/logs/{name}`：升级为 WebSocket 后持续推送新日志行（复用 T04 F6 Follow）；先推尾部 N 行（query 参数）；客户端断开即取消订阅；连接与鉴权同 F5。状态推送（总览自动刷新）v1 允许前端轮询 `/api/executors`，WS 状态通道留接口不实现（记录到变更记录，UI 走轮询）。
 - **验收要点**：
   - 单测（假 WS 客户端）：连接 → 收尾部行 → 持续写入持续收到 → 断开无泄漏（goroutine/文件句柄回收断言）；
@@ -94,6 +94,7 @@
 | 2026-10-25 | F1 | ✅ 通过 | 实跑 `go test ./internal/daemon/ -count=1`（4 用例全过）：TestDaemon单实例与重启（第二实例非零退出且报错含 port 18765 与 pid；kill -9 后锁随进程释放可重启，daemon.json 更新为新 pid；SIGTERM 优雅退出后 daemon.json 清理）、TestDaemon启动时配置无效拒绝运行、TestDaemon事件日志记录启停（events.log 含 daemon_start/daemon_stop）、TestLock互斥与释放；GOOS=windows/darwin 交叉编译通过。开发中修复：AWEM_CONFIG_DIR 曾被当作 userConfigDir 追加一层 awem/，语义改为直接作为根目录（见变更记录）。 |
 | 2026-10-25 | F2 | ✅ 通过 | 实跑 `go test ./internal/daemon/ ./internal/config/ -count=1`：TestListen端口零自动写回与roundtrip（port=0 → 实际端口写回 config.toml；executor/platform 段保留；磁盘内容 == Load 后再序列化，格式稳定；监听地址断言 127.0.0.1）、TestListen固定端口不写回、TestDaemon自动端口写回与二次启动（真实二进制：daemon.json 记实际端口、二次启动复用该端口、端口可连接；写回触发的文件监视重载被抑制——events.log 无 config_changed）、config 包 TestReload内容未变跳过发布（等价重载 ReloadCount=1/PublishedCount=0；SetCurrent 后等价跳过；真实变更发布 port=9090）。全仓三绿。 |
 | 2026-10-25 | F3 | ✅ 通过 | 实跑 `go test ./internal/api/ -count=1`（15 用例全过，fakeproc 真子进程）：401 矩阵（无 token/错 token，code=unauthorized）、列表+token 掩码断言（不含明文、含 ***、platform null 占位）、单条 404 not_found、add 全链路（201 → config.toml 落盘 → start=true 后 local.state=running 真子进程）、add 已存在 409 already_exists（field=name）、add 命令逐字段错误（code=invalid_command，field 含 executor-id 与 token）、invalid_name/bad_request、PUT 字段编辑（model 改后命令重建、token 原值保留、--token-aware-enable 不丢）与整条替换、PUT 掩码 token 不覆盖、动作 start/stop/restart（running→stopped 状态断言、start 幂等、404）、DELETE 运行中 409 code=running → stop=true 成功删除（配置移除断言）、purge 删日志文件断言、log tail=3 尾部行、status 字段、settings 掩码回显/掩码保留/platform null 删除段/非法 poll_interval 400/落盘明文、reload 后新增执行器可见、8 并发 add 全部落盘。三绿 + windows/darwin 交叉编译。 |
+| 2026-10-25 | F4 | ✅ 通过 | 实跑 `go test ./internal/api/ ./internal/logs/ -count=1`（含 WS 5 用例）：TestWS日志流全链路（真 gorilla 客户端：backlog 只含最后 2 行 → 持续写入新行A/新行B 实时收到 → 客户端断开后 runtime.NumGoroutine 回落到连接前水平、断开后写路径正常）、TestWSbacklog与Follow不丢不重（backlog 后立刻写入窗口行，修复前被 Follow 首开竞态吞掉，现必达）、TestWS未授权被拒（无/错 token 均在升级前 401）、TestWS不存在的执行器 404、TestWS头鉴权（Authorization: Bearer 同样可用）；logs 包既有 20 用例全过（TailOffset/FollowFrom 对旧接口零破坏）。全仓三绿 + 交叉编译。 |
 
 ## 变更记录
 
@@ -105,3 +106,4 @@
 | 2026-10-25 | F1 ✅ | 验收要点实跑通过（见检查记录），4 用例 + 交叉编译三绿 |
 | 2026-10-25 | F2 实现 + 选型记录 | **写回路径**：`listenWithWriteBack`（internal/daemon/listen.go）——net.Listen 后 port=0 时取实际端口 `config.Save` 结构化写回（注释头与全量字段保留；写回失败不阻塞启动，记事件）。**写回抑制方案**：Watcher.Reload 成功路径增加"与当前内存配置 reflect.DeepEqual 则跳过发布"（不产生订阅回调与 config_changed 事件）；配套 `Watcher.SetCurrent`（daemon 自我写盘后同步内存，不发布）与 `PublishedCount` 观测。daemon 主循环升级：监听→写回→SetCurrent→daemon.json 记实际端口→daemon_start 事件→http.Server.Serve→ctx 取消 5s 宽限 Shutdown；`go watcher.Start(ctx)` 文件监视热加载自此常驻。 |
 | 2026-10-25 | F3 实现 + API 契约定稿 | **路由选型**：标准库 `net/http.ServeMux` 方法模式（Go 1.22+，零第三方依赖）。**错误 schema**：`{"error":{"code","message","field"}}`，field 恒存在（缺省空串）；code→HTTP：bad_request/invalid_name/invalid_command/invalid_config→400，unauthorized→401，forbidden→403，not_found→404，already_exists/running→409，internal→500。**路由全集**：GET/POST /api/executors、GET/PUT/DELETE /api/executors/{name}（DELETE 参数 stop/purge，运行中不 stop=true 则 409 code=running；先停进程再删配置）、POST …/start|stop|restart、GET …/log?tail=N、GET /api/status、GET/PUT /api/settings、POST /api/reload。**视图 schema**（T07/T09 依赖）：executor 视图 = name/command/autostart/workspace_root/restart/parsed/local/platform(null 占位)/drift(null 占位)；parsed.token 恒掩码（logs.MaskSecret）；掩码提交=未修改（token/mcp_token 同语义）；local 含 state/pid/started_at(RFC3339)/uptime_ms/restarts/backoff_delay_ms/conn/last_exit。**写路径**：`mutateConfig` 串行（mutex）"读当前→改→Validate→Save→Watcher.Reload 同步发布"（API 写与热加载共用发布入口）；add 支持 start=true 显式启动。**实现细节**：settings PUT 的日志滚动参数落盘即时、对已打开文件下次 daemon 启动生效；PUT fields 值字段用指针区分"未提交/清空"；请求体限 1MB。测试用 fakeproc（自 supervisor 包 testdata 复制，跨包 testdata 不可引用）。 |
+| 2026-10-25 | F4 实现 + 缺陷修复 | **WS 库**：gorilla/websocket v1.5.3（生态最广、API 稳定）。**端点与消息契约**：`GET /ws/logs/{name}?tail=N&token=<t>`；服务端帧 `{"type":"backlog","lines":[...]}`（连接后一次性尾部回放）→ `{"type":"line","text":...}`（逐行实时）→ `{"type":"error",...}` 后关闭。**鉴权**：/ws/* 额外接受 query token（浏览器 WS 无法自定义头；仅 /ws 前缀生效，避免 token 进 REST 访问日志）。**修复 T04-F6 遗留竞态**：Follow"订阅时刻的文件末尾"实际取首次打开（≤100ms 轮询延迟）时的 size，backlog→Follow 窗口内写入的行会被吞——logs 包增补 `TailOffset`（读取结束时的 fd 偏移，非 stat，天然原子）与 `FollowFrom(name, offset)`；WS 管道改为 TailOffset→backlog→FollowFrom(offset)，不丢不重（回归测试 TestWSbacklog与Follow不丢不重）。**断开回收**：读泵感知断开→Close 订阅→写泵退出，`<-writeDone` 等待收口（测试用 runtime.NumGoroutine 回落断言）。**状态推送通道 v1 不实现**（前端轮询 /api/executors；记录于此，UI 方案 T09 轮询）。 |

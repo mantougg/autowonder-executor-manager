@@ -6,6 +6,7 @@ package logs
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -137,17 +138,45 @@ func (m *Manager) executorPath(name string) string {
 // Tail 返回当前日志文件的尾部 N 行（不足 N 返回全部）。
 // 文件不存在返回 (nil, nil)——明确空态信号，CLI 显示空、Web 空状态。
 func (m *Manager) Tail(name string, n int) ([]string, error) {
+	lines, _, err := m.TailOffset(name, n)
+	return lines, err
+}
+
+// TailOffset 返回尾部 N 行与读取结束时的字节偏移（T06-F4 增补：
+// WS backlog→Follow 一致性用。偏移取自读取 fd 的实时位置而非 stat，
+// 保证 [offset, ∞) 恰好是本次未读到的字节——FollowFrom(offset) 不丢不重。
+// 文件不存在返回 (nil, 0, nil)。
+func (m *Manager) TailOffset(name string, n int) ([]string, int64, error) {
 	if n <= 0 {
 		n = 50
 	}
-	lines, err := readAllLines(m.executorPath(name))
+	path := m.executorPath(name)
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return nil, 0, nil
+	}
 	if err != nil {
-		return nil, err
+		return nil, 0, fmt.Errorf("打开日志 %s 失败：%w", path, err)
+	}
+	defer f.Close()
+	var lines []string
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+	for sc.Scan() {
+		lines = append(lines, sc.Text())
+	}
+	if sc.Err() != nil {
+		return nil, 0, sc.Err()
+	}
+	// 已读到的确切位置（此后写入的字节位置必 ≥ 该值）
+	pos, err := f.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return nil, 0, fmt.Errorf("定位读取偏移失败：%w", err)
 	}
 	if len(lines) > n {
 		lines = lines[len(lines)-n:]
 	}
-	return lines, nil
+	return lines, pos, nil
 }
 
 // ReadLines 历史分页读取（当前文件）：返回从行偏移 offset 开始的 limit 行
@@ -210,7 +239,18 @@ func (s *Subscription) Close() {
 // Follow 订阅执行器日志的新行推送：从订阅时刻的文件末尾开始；
 // 滚动切换后自动跟随（沿编号链回放，写入快导致连滚多次也不漏行）。
 // 文件不存在不报错（出现后自动开始）。
+//
+// 注意：订阅时刻按 Follow 内部首次打开文件（≤followPollInterval 延迟）
+// 计算，与调用返回之间存在竞态窗口；需要精确不丢不重的场景（如 WS
+// backlog 接续）用 FollowFrom 配合 TailOffset 的偏移。
 func (m *Manager) Follow(name string) (*Subscription, error) {
+	return m.FollowFrom(name, -1)
+}
+
+// FollowFrom 从指定字节偏移开始订阅（offset<0 等价 Follow：从订阅时刻的
+// 文件末尾开始）。文件从 offset 起的现存内容会作为新行推出（语义与
+// "从文件末尾开始"一致：把 offset 之后的一切都视为新内容）。
+func (m *Manager) FollowFrom(name string, offset int64) (*Subscription, error) {
 	path := m.executorPath(name)
 	out := make(chan string, 256)
 	stop := make(chan struct{})
@@ -279,6 +319,8 @@ func (m *Manager) Follow(name string) (*Subscription, error) {
 			if f == nil {
 				if opened {
 					openAt(path, 0) // 滚动后新文件：从 0 读
+				} else if offset >= 0 {
+					openAt(path, offset) // 指定偏移：现存后续内容视为新行
 				} else {
 					openAt(path, pstat.Size()) // 首次出现：从末尾开始（只推新行）
 				}

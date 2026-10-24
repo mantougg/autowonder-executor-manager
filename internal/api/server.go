@@ -57,10 +57,12 @@ func (s *Server) Handler() http.Handler {
 
 	root := http.NewServeMux()
 	root.Handle("/api/", s.auth(api))
-	root.Handle("/ws/", s.auth(s.wsHandler())) // F4 实现；先占位拒绝升级
+	root.Handle("/ws/", s.auth(s.wsHandler())) // WS 日志流（F4）
 	root.HandleFunc("/", s.spaHandler)         // 静态资源（免鉴权 SPA 壳，F7 完善 fallback）
 	return root
 }
+
+// wsHandler 由 ws.go 提供（/ws/logs/{name}）。
 
 // auth 校验 token 头后转发（无/错 token 一律 401）。
 // Host/Origin 防 CSRF 校验在 F5 加固。
@@ -77,7 +79,8 @@ func (s *Server) auth(next http.Handler) http.Handler {
 	})
 }
 
-// checkToken 提取并比对 token 头。
+// checkToken 提取并比对 token。头优先（Authorization: Bearer / X-Awem-Token）；
+// /ws/* 额外接受 query 参数 token（浏览器 WebSocket 无法自定义请求头）。
 func (s *Server) checkToken(r *http.Request) bool {
 	tok := ""
 	if h := r.Header.Get("Authorization"); h != "" {
@@ -86,14 +89,10 @@ func (s *Server) checkToken(r *http.Request) bool {
 	if tok == "" {
 		tok = strings.TrimSpace(r.Header.Get("X-Awem-Token"))
 	}
+	if tok == "" && strings.HasPrefix(r.URL.Path, "/ws/") {
+		tok = r.URL.Query().Get("token")
+	}
 	return tok != "" && tok == s.opts.Token
-}
-
-// wsHandler WebSocket 占位（F4 实现日志实时流）。
-func (s *Server) wsHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writeAPIError(w, &apiError{Status: http.StatusNotFound, Code: "not_found", Message: "WebSocket 端点尚未实现"})
-	})
 }
 
 // spaHandler 静态资源（F7 升级为完整 SPA fallback；当前返回内嵌首页）。
