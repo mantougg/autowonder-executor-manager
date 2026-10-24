@@ -59,7 +59,8 @@ func RegisterCommands(r *Registry, d Deps) {
 	reg := func(c *Command) { r.Register(c) }
 	reg(cmdAdd(d))
 	reg(cmdList(d))
-	// 后续功能点逐个注册：status/start/stop/restart/edit/remove/log/import/doctor/reload
+	reg(cmdStatus(d))
+	// 后续功能点逐个注册：start/stop/restart/edit/remove/log/import/doctor/reload
 }
 
 // printf 向 Deps.Out 输出。
