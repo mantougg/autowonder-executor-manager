@@ -75,8 +75,8 @@
 
 ### F7 · log
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：`awem log <名称> [-f] [--lines N]`：默认尾部 N 行（默认值定 100 并记录）；`-f` 跟随（复用 Follow，Ctrl-C 退出干净）；无日志文件给空态提示；未找到 → 3。输出为原始日志行（ANSI 保留）。
 - **验收要点**：
   - tail 行数正确；`-f` 能收到新行并 Ctrl-C 无残留（冒烟）；
@@ -119,6 +119,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F7 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestLog -count=1`：TestLog尾部行数（tail=3 恰好 行8-10；默认 100 含全部；--lines=abc → 2）、TestLog空态与不存在（暂无日志提示、nope → 3）、TestLogJSON结构化行数组（lines 数组 + tail 字段）、TestLog跟随收到新行并干净退出（真 WS：backlog 行2 → 400ms 后写入跟随新行X 实时收到 → 主动停止返回 nil，无错误无泄漏）。 |
 | 2026-10-25 | F6 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestRemove -count=1`：TestRemove确认与落盘（n 取消配置保留、y 删除、--yes 跳过、不存在 3）、TestRemovePurge与日志保留（不带 purge 日志文件保留；--purge 文件删除断言）、TestRemove运行中先停后删（确认文案含"将先停止其进程"、结果"已停止进程"、删除后无残留 pid；拒绝后进程仍 running）。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F5 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestEdit -count=1`：TestEdit单字段与命令重建（--model dfmodel --reasoning-effort low → 命令重建、--token-aware-enable 与原 token 保留）、TestEdit布尔与autostart（--debug 追加、--no-autostart 生效、--debug=false 移除 flag）、TestEdit整条替换与坏命令（替换生效；not-a-command → 退出码 2 且原配置字节不变；不存在 → 3；无修改项 → 2）、TestEdit运行中提示restart（"下次 restart 后生效"）。 |
 | 2026-10-25 | F4 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run "TestActions|TestStop全部|TestStart全部|Test部分失败" -count=1`：TestActions单名称三态（start→running、重复 start 幂等 0、stop→stopped、重复 stop 幂等 0、restart 未运行=启动、start/stop 不存在→3）、TestStop全部确认交互（拒绝 n→"已取消"退出 0 且文案含"将停止全部 2 个执行器"；确认 y→✓ s1/s2 已停止；--yes 跳过确认）、TestStart全部逐条汇报（✓ g1 ✓ g2）。注：多名称部分失败整体退出码 1 的路径在当前命令面（至多一个名称参数/全部名单恒有效）无法自然构造，代码路径已实现（failed>0 → General），遗留到 F10 退出码矩阵统一复核。 |
@@ -132,6 +133,7 @@
 |---|---|---|
 | 2026-10-24 | 创建 | 由任务计划生成 |
 | 2026-10-25 | 开工 | 子任务状态 ⬜→🔄；fakeproc 从两处 testdata 提为 internal/fakeproc 共享包（supervisor/api/cli 三处测试 TestMain 统一构建）；daemon.Client 导出 NewClientAt（测试直连）；APIError 退出码映射补充 invalid_command/invalid_name/bad_request/invalid_config→2（用法错）；cli 包新增 Deps 依赖注入（Layout/Connect/In/Out）与 RegisterCommands 装配骨架 |
+| 2026-10-25 | F7 实现 | **--lines 默认 100**（决策记录）；-f 经 /ws/logs/{name}（daemon.Client 新增 FollowLogs：query token 鉴权、LogEvent 信封、onEvent 返回 false 主动停止=Ctrl-C 等价）；非流式走 GET …/log?tail=N；空日志中文空态；行原样输出（ANSI 保留）；--json 非流式输出 {"lines":[],"tail":N}。 |
 | 2026-10-25 | F6 实现 | 确认文案按状态组装（运行中→"将先停止其进程"；--purge→"删除全部本地日志"；恒带"不可恢复"）；运行中自动带 stop=true（API 先停后删）；--purge 映射 purge=true；结果汇报已停止/日志已清除。 |
 | 2026-10-25 | F5 实现 | 字段 flag 全集：model/reasoning-effort/context-window/memory-mode/max-tasks/token/ws-url/executor-id/provider/runtime-version + 布尔 autostart[=bool]/restart[=bool]/debug[=bool] + workspace-root + --command 整条替换；值 flag 支持 --x v 与 --x=v 两种形态；服务端重建命令（passthrough 与未提交 token 不丢）；运行中（running/backoff/stopping）提示"下次 restart 后生效"；输出展示新命令全文。 |
 | 2026-10-25 | F4 实现 | 三命令共用 cmdAction 工厂；无名称=全部（名单来自 GET /api/executors，空名单友好提示）；stop 全部确认文案"将停止全部 N 个执行器"（--yes 跳过；n/N/空/EOF=拒绝）；逐条 ✓/✗ 汇报（含动作后状态）；单名称失败直接返回对应退出码（3/1），多名称部分失败继续并整体退出码 1；start/restart 全部不确认（非破坏性）。 |

@@ -65,7 +65,8 @@ func RegisterCommands(r *Registry, d Deps) {
 	reg(cmdAction(d, "restart"))
 	reg(cmdEdit(d))
 	reg(cmdRemove(d))
-	// 后续功能点逐个注册：log/import/doctor/reload
+	reg(cmdLog(d))
+	// 后续功能点逐个注册：import/doctor/reload
 }
 
 // printf 向 Deps.Out 输出。
