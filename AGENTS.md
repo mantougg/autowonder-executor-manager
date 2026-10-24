@@ -34,6 +34,14 @@
 - v1 不做内置 MCP server（v1.5 再加）；launchConfig 回写留 v2。
 - 本地 API 只绑 127.0.0.1，不提供多用户/远程访问。
 
+## 发布约定
+
+- 版本 semver，自 **v0.1.0** 起；打 `v*` tag 推送即触发 release workflow 自动发布（五平台 + checksums）。
+- **tag 必须是 annotated tag，且 message 为与上一个 tag 之间的变更总结与列举**
+  （首个 tag 相对仓库起点）：按子任务/功能块组织，先一句话总结再逐条列举；
+  末尾注明已知余量/未验证项。禁止裸 tag（`git tag v0.1.0`）与空 message。
+  示例：`git tag -a v0.1.0 -m "$(cat TAGNOTES.md)"`。
+
 ## 技术约定
 
 - Go 单 module + `go:embed` 内嵌 React SPA；二进制名 `awem`。
