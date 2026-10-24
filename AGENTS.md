@@ -15,6 +15,48 @@
 - **实现与设计文档冲突时，先改文档、征得用户同意，再改代码。**
 - 推进开发/检查用 `awem-dev` 技能（`.agents/skills/awem-dev/`）；全链路冒烟
   `scripts/smoke.sh`；发布打 `v*` tag 触发 workflow。
+- `docs/task-awem-dev/conventions.md` 的状态流转规则**仅适用于任务计划（T01–T11）的执行与检查**；
+  日常功能开发与问题修复按「提交前检查清单」执行，不维护任务状态表。
+
+## 30 秒架构
+
+```
+CLI / Web SPA ──HTTP 127.0.0.1+token──▶ daemon（internal/api）
+                                            │ supervisor：spawn/进程树终止/崩溃拉起
+                                            ▼
+                                     npx -y autowonder@<ver> connect …（执行器子进程）
+config.toml 文件监视热加载 ◀── daemon；logs 收割执行器日志 + events.log；
+platform 只读轮询平台 ONLINE/BUSY/OFFLINE + 漂移检测。
+```
+
+- CLI 不直改状态，一切走本地 API；daemon 未运行时 CLI 自动拉起。
+- daemon 是唯一持有状态的进程；配置单源是 `config.toml`。
+
+## 改哪里（速查）
+
+| 要做什么 | 动的位置 |
+|---|---|
+| CLI 子命令 | `internal/cli/`（注册在 `commands.go`） |
+| 启动命令字段解析 | `internal/launchcmd/`（纯函数库，roundtrip 不丢未知 flag） |
+| API 端点 / JSON 视图 | `internal/api/server.go` + `schema.go` |
+| 进程守护行为 | `internal/supervisor/`（平台差异成对改 `_unix.go`/`_windows.go`） |
+| 配置字段 | `internal/config/`（model + validate + default_config + toml_io） |
+| Web 页面 | `web/src/pages|components/`，契约变则同步 `web/src/api.ts` + 后端 `schema.go` |
+| 平台联动 | `internal/platform/`（只读红线） |
+| 系统服务 | `internal/service/` |
+
+完整代码地图、隐性契约（退出码 / `--json` 兼容 / 掩码 / 测试隔离）、排障路径
+与常见坑见 [docs/dev-guide.md](docs/dev-guide.md)——**开发/修复前先读它**。
+
+## 提交前检查清单
+
+1. 三绿：`go build ./... && go vet ./... && go test ./...`（改了 Web 另跑
+   `cd web && npm run build`，含 `tsc --noEmit` 类型门）。
+2. 全链路冒烟：`scripts/smoke.sh`（无 systemd 环境用 `--skip-service`）。
+3. 设计一致性：实现与 [design.md](docs/design/design.md) 冲突时先改文档、征得同意再改代码；
+   UI 元素先符合 [ui-guidelines.md](docs/design/ui-guidelines.md)。
+4. 文档同步：改了本文档/design.md/ui-guidelines.md 描述的行为，同步更新对应文档；
+   改了包职责或入口，同步该包 `doc.go` 与 [docs/dev-guide.md](docs/dev-guide.md) 代码地图。
 
 ## 文档约定
 

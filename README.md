@@ -92,6 +92,7 @@ Linux   ~/.config/awem/          macOS ~/Library/Application Support/awem/   Win
 | 文档 | 内容 |
 |---|---|
 | [docs/agent-guide.md](docs/agent-guide.md) | AI Agent 的 CLI 维护指南（--json schema / 退出码 / 工作流） |
+| [docs/dev-guide.md](docs/dev-guide.md) | 开发指南：架构图 / 代码地图 / "改哪里"路由表 / 隐性契约 / 排障与常见坑 |
 | [docs/design/design.md](docs/design/design.md) | 设计基准：架构、数据模型、CLI/API/Web、安全、跨平台、里程碑 |
 | [docs/design/ui-guidelines.md](docs/design/ui-guidelines.md) | Web UI 设计令牌（`--awem-*`）、状态色语义、组件规范 |
 | [docs/task-awem-dev/index.md](docs/task-awem-dev/index.md) | 开发任务索引与实时进度 |
