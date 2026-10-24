@@ -5,7 +5,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -67,6 +69,42 @@ func buildRegistry() *cli.Registry {
 		},
 	})
 
+	// reload：手动触发配置重载（惰性拉起 daemon；正常由文件监视自动完成）。
+	r.Register(&cli.Command{
+		Name:    "reload",
+		Summary: "手动触发配置重载（正常由文件监视自动完成，此为兜底入口）",
+		Usage:   "awem reload",
+		Run: func(g cli.GlobalFlags, args []string) error {
+			if len(args) > 0 {
+				return exitcode.Usagef("awem reload 不接受参数")
+			}
+			p, err := config.DefaultLayout()
+			if err != nil {
+				return exitcode.Wrap(exitcode.General, err)
+			}
+			ctx := context.Background()
+			cl, err := daemon.Connect(ctx, daemon.ClientOptions{Paths: p})
+			if err != nil {
+				return err // Connect 已包装为退出码 5 语义
+			}
+			data, err := cl.Do(ctx, http.MethodPost, "/api/reload", nil)
+			if err != nil {
+				return wrapAPIErr(err)
+			}
+			if g.JSON {
+				fmt.Println(string(data))
+				return nil
+			}
+			var out struct {
+				Reloaded bool `json:"reloaded"`
+				Changed  bool `json:"changed"`
+			}
+			_ = json.Unmarshal(data, &out)
+			fmt.Println("配置重载完成（变更：" + boolCN(out.Changed) + "）")
+			return nil
+		},
+	})
+
 	placeholders := []cli.Command{
 		{Name: "add", Summary: "粘贴整条启动命令添加执行器", Usage: "awem add [--autostart] [--file <路径>]"},
 		{Name: "list", Summary: "列出全部执行器（本地+平台状态）", Usage: "awem list"},
@@ -80,11 +118,27 @@ func buildRegistry() *cli.Registry {
 		{Name: "import", Summary: "解析旧 executor-manager.sh 导入", Usage: "awem import [--with-logs]"},
 		{Name: "doctor", Summary: "环境体检（Node/npx/平台连通/磁盘）", Usage: "awem doctor"},
 		{Name: "service", Summary: "系统服务安装/卸载/状态", Usage: "awem service install|uninstall|status"},
-		{Name: "reload", Summary: "手动触发配置重载", Usage: "awem reload"},
 	}
 	for i := range placeholders {
 		r.Register(&placeholders[i])
 	}
 
 	return r
+}
+
+// wrapAPIErr 把 daemon.APIError 转为带退出码的 CLI 错误。
+func wrapAPIErr(err error) error {
+	var ae *daemon.APIError
+	if errors.As(err, &ae) {
+		return exitcode.Wrap(ae.ExitCode(), err)
+	}
+	return err
+}
+
+// boolCN 布尔值中文展示。
+func boolCN(b bool) string {
+	if b {
+		return "是"
+	}
+	return "否"
 }
