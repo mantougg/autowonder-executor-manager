@@ -1,6 +1,6 @@
-// fakeproc 是假长驻子进程（api 测试专用，位于 testdata 不进产品二进制）。
-// 从 internal/supervisor/testdata/fakeproc 复制（跨包 testdata 无法引用），
-// 行为与控制 flag 语义一致，见原文件注释。
+// fakeproc 是假长驻子进程（supervisor/api/cli 测试共用，TestMain 构建为临时二进制，不进产品 awem）。
+// 充当"假 npx"：忽略自身 argv 里的 npx 包装词（-y / autowonder@… / connect
+// 及全部 connect 参数），只识别 -fake-xxx=yyy 形态的控制 flag。
 //
 // 控制_flag（全部用 = 单词形态，避免与 connect 参数的取值语义混淆）：
 //   -fake-mode=run|crash|ignore-term|tree|child|exit-now   （默认 run）

@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 	}
 	defer os.RemoveAll(dir)
 	out := filepath.Join(dir, "fakeproc")
-	build := exec.Command("go", "build", "-o", out, "./testdata/fakeproc")
+	build := exec.Command("go", "build", "-o", out, "awem/internal/fakeproc")
 	build.Stderr = os.Stderr
 	if err := build.Run(); err != nil {
 		panic(fmt.Sprintf("构建 fakeproc 失败：%v", err))

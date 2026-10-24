@@ -40,10 +40,13 @@ type Server struct {
 	mu        sync.Mutex // 配置写路径串行化（读当前→改→校验→落盘→发布）
 }
 
-// New 创建 API 服务。
+// New 创建 API 服务（Plat 未注入时默认 Noop，防 nil 接口调用）。
 func New(opts Options) *Server {
 	if opts.Version == "" {
 		opts.Version = version.Version
+	}
+	if opts.Plat == nil {
+		opts.Plat = platform.Noop{}
 	}
 	return &Server{opts: opts, startedAt: time.Now()}
 }

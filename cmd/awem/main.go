@@ -106,7 +106,6 @@ func buildRegistry() *cli.Registry {
 	})
 
 	placeholders := []cli.Command{
-		{Name: "add", Summary: "粘贴整条启动命令添加执行器", Usage: "awem add [--autostart] [--file <路径>]"},
 		{Name: "list", Summary: "列出全部执行器（本地+平台状态）", Usage: "awem list"},
 		{Name: "status", Summary: "查看运行态、pid、uptime、重启次数等", Usage: "awem status [名称]"},
 		{Name: "start", Summary: "启动执行器（无名称=全部）", Usage: "awem start [名称]"},
@@ -122,6 +121,9 @@ func buildRegistry() *cli.Registry {
 	for i := range placeholders {
 		r.Register(&placeholders[i])
 	}
+
+	// API 依赖型子命令集（T07 逐功能点扩充；重名覆盖上面的占位注册）
+	cli.RegisterCommands(r, cli.Deps{})
 
 	return r
 }

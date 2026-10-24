@@ -112,16 +112,29 @@ func (e *APIError) Error() string {
 }
 
 // ExitCode 把 API 错误映射为 CLI 退出码（conventions §4）。
+// 用户输入的命令/参数问题（invalid_command/invalid_name/bad_request/
+// invalid_config）按用法错误（2）；not_found→3；already_exists→4；
+// 其余→1（unauthorized/forbidden 在同机同用户场景不应出现）。
 func (e *APIError) ExitCode() int {
 	switch e.Code {
+	case "invalid_command", "invalid_name", "bad_request", "invalid_config":
+		return exitcode.Usage
 	case "not_found":
 		return exitcode.NotFound
 	case "already_exists":
 		return exitcode.AlreadyExists
-	case "unauthorized", "forbidden":
-		return exitcode.General // 同机同用户场景不应出现；按一般错误提示
 	default:
 		return exitcode.General
+	}
+}
+
+// NewClientAt 返回直连指定 base URL 的客户端（测试直连 httptest 假
+// daemon 用；生产路径走 Connect 惰性拉起）。
+func NewClientAt(baseURL, token string) *Client {
+	return &Client{
+		baseURL: baseURL,
+		token:   token,
+		http:    &http.Client{Timeout: 30 * time.Second},
 	}
 }
 

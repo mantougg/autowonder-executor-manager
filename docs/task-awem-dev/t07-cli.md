@@ -1,6 +1,6 @@
 # T07 · CLI 子命令集
 
-- **子任务状态**：⬜ 未开始
+- **子任务状态**：🔄 进行中
 - **前置依赖**：T03、T05、T06（API 客户端 + 惰性拉起）
 - **设计依据**：[design.md](../design/design.md) §8（CLI 设计）、§5.3（add/edit 语义）、D1（命令集/退出码）
 - **产物范围**：`internal/cli/` 各子命令（add/list/status/start/stop/restart/edit/remove/log/import/doctor/reload/version）
@@ -19,8 +19,8 @@
 
 ### F1 · add
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：`awem add "<整条启动命令>"`（或 `--file <路径>` 读命令）；开关：`--autostart`/`--no-autostart`、`--restart`/`--no-restart`、`--debug`、`--start`（添加后立即启动，默认行为定为"添加后不自动启动除非 autostart 显式给"并记录）；走 API add 链路（解析→校验→落盘）；成功输出解析摘要（名称、executor-id、model、provider——**token 掩码**）。同名已存在 → 退出码 4；解析失败 → 退出码 2 + 逐字段错误。
 - **验收要点**：
   - 集成测试（httptest 假 daemon 或真拉起）：正常添加、重名（4）、坏命令（2）、`--json` 输出字段稳定且 token 掩码；
@@ -119,10 +119,12 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-10-25 | F1 | ✅ 通过 | 实跑 `go test ./internal/cli/ -count=1`（6 用例）：TestAdd正常添加与人读摘要（exec-10086 自动命名、摘要含 ID/provider/版本、**明文 token 不出现**、config.toml 落盘）、TestAdd默认名与自定义名（--name 生效；重名退出码 4）、TestAdd坏命令退出码2（executor-id 非数字/非 npx 命令/缺命令 → 2）、TestAdd文件输入与参数等价（--file 落盘一致）、TestAddJSON输出掩码（合法 JSON、token 含 ***、--start 后 local.state=running 真子进程）、TestAdd开关落盘（--autostart/--no-restart/--debug 逐项断言）。全仓三绿 + 交叉编译。 |
 
 ## 变更记录
 
 | 日期 | 动作 | 说明 |
 |---|---|---|
 | 2026-10-24 | 创建 | 由任务计划生成 |
+| 2026-10-25 | 开工 | 子任务状态 ⬜→🔄；fakeproc 从两处 testdata 提为 internal/fakeproc 共享包（supervisor/api/cli 三处测试 TestMain 统一构建）；daemon.Client 导出 NewClientAt（测试直连）；APIError 退出码映射补充 invalid_command/invalid_name/bad_request/invalid_config→2（用法错）；cli 包新增 Deps 依赖注入（Layout/Connect/In/Out）与 RegisterCommands 装配骨架 |
+| 2026-10-25 | F1 实现 + 决策记录 | **名称策略**：默认名 `exec-<executor-id>`（--name 覆盖；design 未定，选"可从命令自动推导且无中文"方案）。**默认不启动**：--autostart=随 daemon 拉起（配置语义），--start=添加后立即启动（一次性动作）。**--debug** 以追加布尔 flag 进命令实现（§11.3）。**错误分层**：本地先 Parse+Validate（逐字段、退出码 2、不走网络）；名称显式给出时容忍解析失败交 API 复核。**--json**：直透 API 201 响应（executor 视图，token 恒掩码）。**人读摘要**：名称/ID/provider/模型/runtime 版本/token 掩码/autostart + 后续提示。 |
