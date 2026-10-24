@@ -1,6 +1,6 @@
 # T11 · 打包分发与 Agent 文档
 
-- **子任务状态**：⬜ 未开始
+- **子任务状态**：🔄 进行中（F4 核对表待用户复核）
 - **前置依赖**：T01–T10 全部 ✅（收尾任务）
 - **设计依据**：[design.md](../design/design.md) §14（分发与版本）、§15（交付边界）、决策 #14/#16
 - **产物范围**：发布构建与校验和、一键安装脚本、Agent 使用说明、最终验收核对
@@ -17,8 +17,8 @@
 
 ### F1 · 发布构建
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：构建脚本（Makefile release 或 scripts/release.sh）：五平台交叉编译 linux/amd64、linux/arm64、darwin/amd64、darwin/arm64、windows/amd64 → `awem-<os>-<arch>[.exe]` + `checksums.txt`（sha256）；版本号与构建信息经 ldflags 注入（接 T01 F4 预留）；构建含 web/dist（T09 F8）。
 - **验收要点**：
   - 一条命令产出全部产物 + checksums；`sha256sum -c` 通过；
@@ -27,8 +27,8 @@
 
 ### F2 · 一键安装脚本
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过（install.ps1 解析检查待 pwsh 环境）
 - **开发描述**：`install.sh`（POSIX sh，兼容 dash/busybox）与 `install.ps1`（PowerShell）：下载指定版本 Releases 产物（默认最新/可指定版本与镜像参数）、校验 sha256、解压到用户本地 bin（如 `~/.local/bin`，PATH 提示）、失败清理。脚本本身随仓库分发（docs 或 scripts/）。
 - **验收要点**：
   - install.sh 在本机（Linux）真实跑通：安装 → `awem version` 可执行；坏校验和 → 拒绝安装；
@@ -61,7 +61,8 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-10-25 | F1 | ✅ 通过 | 实跑 `make release VERSION=v0.1.0-test`（退出码 0）：五产物（darwin-amd64 12M/darwin-arm64 11M/linux-amd64 12M/linux-arm64 11M/windows-amd64.exe 12M）+ checksums.txt；`cd release && sha256sum -c checksums.txt` 五项全部"成功"；本机执行 awem-linux-amd64 version 输出注入版本 `awem v0.1.0-test` + `--json` 含 version/os/arch/go。 |
+| 2026-10-25 | F2 | ✅ 通过 | install.sh 本机真实演练（本地 http 冒充镜像）：正常路径安装成功（`awem v0.1.0-test` 可执行、PATH 提示）、幂等重装 OK、**坏校验和拒绝安装**（exit 1、"sha256 不匹配…拒绝安装"文案、无文件残留）；`sh -n`/`dash -n` 语法检查过。install.ps1 语法解析检查待 pwsh 环境（本机无），真机安装演练待 Windows。 |
 
 ## 16 条决策核对表（F4 产出，逐条填证据）
 

@@ -36,3 +36,25 @@ vet:
 
 clean:
 	rm -f $(BINARY) $(BINARY).exe
+
+# 发布构建（T11-F1）：五平台交叉编译 + checksums.txt（design §14）。
+# 用法：make release VERSION=v0.1.0（产物在 release/）
+RELEASE_DIR := release
+PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
+
+.PHONY: release release-clean
+
+release: web-dist
+	@mkdir -p $(RELEASE_DIR)
+	@set -e; for p in $(PLATFORMS); do \
+		os=$${p%/*}; arch=$${p#*/}; \
+		ext=""; [ "$$os" = "windows" ] && ext=".exe"; \
+		out="$(RELEASE_DIR)/awem-$$os-$$arch$$ext"; \
+		echo ">> 构建 $$out"; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -ldflags "$(LDFLAGS)" -o $$out ./cmd/awem; \
+	done
+	@cd $(RELEASE_DIR) && sha256sum awem-* > checksums.txt && echo ">> 校验和已生成 $(RELEASE_DIR)/checksums.txt"
+	@ls -lh $(RELEASE_DIR)
+
+release-clean:
+	rm -rf $(RELEASE_DIR)
