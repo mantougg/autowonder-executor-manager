@@ -79,6 +79,11 @@ func (e ExecutorRemote) Heartbeat() time.Time {
 	return time.UnixMilli(e.LastHeartbeatMS)
 }
 
+// Squad 把小队名列表拼为展示串（顿号分隔；空为 ""）。
+func (e ExecutorRemote) Squad() string {
+	return strings.Join(e.SquadNames, "、")
+}
+
 // LaunchConfig 是 get_executor_launch_config 的平台侧启动配置
 // （2026-10-25 实测：contextWindow 为字符串，如 "1000000"）。
 type LaunchConfig struct {

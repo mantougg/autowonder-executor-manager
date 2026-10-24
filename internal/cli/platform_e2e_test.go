@@ -54,7 +54,7 @@ func newFakePlatform(t *testing.T) *fakePlatform {
 		case "autowonder.list_projects":
 			_, _ = w.Write([]byte(text(`{"items":[{"id":10000,"name":"ws"}]}`)))
 		case "autowonder.list_executors":
-			_, _ = w.Write([]byte(text(`{"items":[{"id":10086,"name":"NO1快速全栈开发","agentId":10007,"agentName":"快速全栈开发","status":"` + st + `","lastHeartbeat":1792872206969}]}`)))
+			_, _ = w.Write([]byte(text(`{"items":[{"id":10086,"name":"NO1快速全栈开发","agentId":10007,"agentName":"快速全栈开发","status":"` + st + `","lastHeartbeat":1792872206969,"squadNames":["标准自动化交付"]}]}`)))
 		case "autowonder.get_executor_launch_config":
 			_, _ = w.Write([]byte(text(`{"model":"` + model + `","reasoningEffort":"medium","contextWindow":"1000000"}`)))
 		default:

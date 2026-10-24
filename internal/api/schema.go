@@ -64,6 +64,7 @@ type platformView struct {
 	Name          string `json:"name,omitempty"`       // 平台侧执行器名（接入中文名）
 	AgentName     string `json:"agent_name,omitempty"` // 所属数字工人中文名
 	Project       string `json:"project,omitempty"`    // 所属项目（工作空间）名
+	Squad         string `json:"squad,omitempty"`      // 所属小队名
 }
 
 // driftView 是漂移信息（null=无漂移或未联动；文案按 design #9）。
@@ -128,6 +129,7 @@ func (s *Server) buildExecutorView(e config.Executor) executorView {
 			Name:          ps.Name,
 			AgentName:     ps.AgentName,
 			Project:       ps.Project,
+			Squad:         ps.Squad,
 		}
 			if len(ps.Drift) > 0 {
 				v.Drift = driftView{

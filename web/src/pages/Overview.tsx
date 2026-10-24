@@ -67,6 +67,10 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
     }
   }
 
+  // 平台联动展示判定：任一行有平台数据即展示归属列（未联动隐藏两列，
+  // 名称回退标识名——design §7.4）
+  const linked = rows?.some((e) => e.platform) ?? false
+
   return (
     <div className="awem-page">
       <div className="awem-page-header">
@@ -100,7 +104,12 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
             <thead>
               <tr>
                 <th>名称</th>
-                <th>所属项目</th>
+                {linked ? (
+                  <>
+                    <th>所属项目</th>
+                    <th>所属小队</th>
+                  </>
+                ) : null}
                 <th>{t.status.local}</th>
                 <th>连接</th>
                 <th>{t.status.platform}（平台轮询）</th>
@@ -131,7 +140,12 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                       </span>
                     ) : null}
                   </td>
-                  <td className="awem-hint">{e.platform?.project || '—'}</td>
+                  {linked ? (
+                    <>
+                      <td className="awem-hint">{e.platform?.project || '—'}</td>
+                      <td className="awem-hint">{e.platform?.squad || '—'}</td>
+                    </>
+                  ) : null}
                   <td><StatusDot kind={localStateKind(e.local.state)} text={localStateText[e.local.state] ?? e.local.state} /></td>
                   <td className="awem-hint">{e.local.conn === 'connected' ? t.status.connected : e.local.conn === 'reconnecting' ? t.status.reconnecting : e.local.conn}</td>
                   <td>

@@ -24,8 +24,8 @@ type DriftField struct {
 // Status 是单个执行器的平台侧联动快照（状态 + 漂移 + 归属展示信息）。
 // State 取值：ONLINE / BUSY / OFFLINE / unreachable（平台不可达）/
 // unowned（本地 id 平台不存在，不算错误）。
-// Name/AgentName/Project 来自平台 list_executors（执行器中文名、所属
-// 数字工人中文名、所属项目名），供 Web/CLI 展示（2026-10-25 起）。
+// Name/AgentName/Project/Squad 来自平台 list_executors（执行器中文名、
+// 所属数字工人中文名、所属项目名、所属小队名），供 Web/CLI 展示。
 type Status struct {
 	State         string
 	LastHeartbeat time.Time
@@ -33,6 +33,7 @@ type Status struct {
 	Name          string // 平台侧执行器名（接入时的中文名，如 NO1快速全栈开发）
 	AgentName     string // 所属数字工人中文名（如 快速全栈开发）
 	Project       string // 所属项目（工作空间）名
+	Squad         string // 所属小队名（多个顿号分隔）
 }
 
 // Syncer 接口是 api 层消费面（T06 预留；Noop 为禁用实现）。

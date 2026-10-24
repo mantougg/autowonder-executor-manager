@@ -268,7 +268,7 @@ func TestAPI平台归属展示字段(t *testing.T) {
 		Paths: e.p, Token: "test-token", Logs: e.mgr, Sup: e.sup,
 		Watcher: e.w,
 		Plat: fakeSyncer{"10086": platform.Status{
-			State: "ONLINE", Name: "NO1快速全栈开发", AgentName: "快速全栈开发", Project: "git-workspace",
+			State: "ONLINE", Name: "NO1快速全栈开发", AgentName: "快速全栈开发", Project: "git-workspace", Squad: "快速交付",
 		}}, Port: 18765, Version: "test-1.2.3",
 	})
 	e.srv = httptest.NewServer(e.api.Handler())
@@ -278,7 +278,7 @@ func TestAPI平台归属展示字段(t *testing.T) {
 		t.Fatalf("应 200，实际 %d %s", code, body)
 	}
 	p := jsonMap(t, body)["executor"].(map[string]any)["platform"].(map[string]any)
-	if p["name"] != "NO1快速全栈开发" || p["agent_name"] != "快速全栈开发" || p["project"] != "git-workspace" {
+	if p["name"] != "NO1快速全栈开发" || p["agent_name"] != "快速全栈开发" || p["project"] != "git-workspace" || p["squad"] != "快速交付" {
 		t.Fatalf("platform 归属展示字段：%v", p)
 	}
 }

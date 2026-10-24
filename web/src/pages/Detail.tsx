@@ -119,6 +119,7 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
           <span className="awem-hint">{t.status.platform}：—</span>
         )}
         {view.platform?.project ? <span className="awem-hint">所属项目 {view.platform.project}</span> : null}
+        {view.platform?.squad ? <span className="awem-hint">所属小队 {view.platform.squad}</span> : null}
         <span className="awem-hint">pid {view.local.pid || '—'}</span>
         <span className="awem-hint">uptime {fmtUptime(view.local.uptime_ms)}</span>
         <span className="awem-hint">重启 {view.local.restarts} 次</span>
