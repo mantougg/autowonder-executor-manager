@@ -57,8 +57,8 @@
 
 ### F5 · 旧日志归档（--with-logs 数据准备）
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：提供归档函数：把旧脚本布局 `~/.autowonder-executor/<name>.log` 拷贝到 awem 的 `data/logs/executors/<name>.log`（名称以导入时确认的新名为准）；源不存在则跳过不报错；拷贝记录结构化返回（供 CLI 汇总输出）。不删源文件。
 - **验收要点**：
   - 单测：存在/不存在/改名映射三种情况；
@@ -86,6 +86,7 @@
 | 2026-10-25 | F2 | ✅ | 实跑 `go test ./internal/launchcmd/ -run 'Parse|Validate' -v` 全 PASS：全字段命令解析结果深比较相等且 Validate 通过；`--flag=value` 与 `--flag value` 两形式等价；布尔 flag 纯式/`=false`/`=true`/非法值；未知 flag（--future-flag=v1、--another 42、裸词）完整保序进 passthrough；末尾缺值与"值位置是另一个 flag"均逐 flag 定位；executor-id 非数字/缺失、token 空、provider 非法/缺失各自报对应中文错误，2 项问题聚合计数 |
 | 2026-10-25 | F3 | ✅ | 实跑 `go test ./internal/launchcmd/ -run Render -v` 全 PASS：乱序输入渲染为固定顺序精确串比对；4 条含 passthrough/布尔/引号命令 assertRoundtrip（parse(render(parse))==parse 深比较）；空格/双引号值加单引号且 roundtrip 不变形；编辑 model/reasoning-effort 后 passthrough `--future-keep=v9` 原样保留；false 布尔不渲染；quoteValue 9 组边界（裸/带引号/内嵌单引号/前导横线/空串） |
 | 2026-10-25 | F4 | ✅ | 实跑 `go test ./internal/launchcmd/ -run ParseScript -v` 5 用例 PASS：真实模板 fixture（testdata/executor-manager.sh）恰解析 1 条、名称"NO1示例数字人"、命中占位符标记而非静默导入；合成脚本覆盖数组内外注释/空行跳过、合法条目直入、中文名→exec-10087 建议、单引号条目、无分隔符报错、坏命令报"不支持的命令"；建议名去重（exec-5 / exec-5-2）；无数组报错、空数组 0 条 |
+| 2026-10-25 | F5 | ✅ | 实跑 `go test ./internal/launchcmd/ -run Archive -v` 3 用例 PASS：改名映射（需求澄清.log→exec-10086.log 内容一致）、同名迁移、源缺失跳过并给原因；源目录文件数与内容均不变（只读源只写目标）、目标目录仅 1 个新文件；空映射 0 条 |
 
 ## 变更记录
 
@@ -101,3 +102,4 @@
 | 2026-10-25 | F3 ✅ | Render + quoteValue，幂等/顺序/编辑保 passthrough 单测通过 |
 | 2026-10-25 | F4 选型：改名建议策略 | 原名不合规但命令合法时建议名 = `exec-<executor-id>`（id 是最稳的定位符），解析失败时 `imported-<序号>`；同建议名冲突追加 `-2/-3`。占位符检测用 `<[^<>]+>` 正则（覆盖 `<runtimeVersion>`/`<id>`/`<内网地址>` 等），命中即标 ParseErr"疑似模板示例行"，不静默导入。真实模板已拷贝为 testdata/executor-manager.sh fixture |
 | 2026-10-25 | F4 ✅ | ParseScript + ValidExecutorName + suggestName，fixture/合成单测通过 |
+| 2026-10-25 | F5 ✅ | ArchiveLogs（改名映射/源缺失跳过/不动源目录），单测通过 |
