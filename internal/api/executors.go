@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"awem/internal/config"
 	"awem/internal/launchcmd"
@@ -32,6 +33,7 @@ func (s *Server) registerExecutorRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/executors/{name}/stop", s.handleAction(s.opts.Sup.StopExecutor))
 	mux.HandleFunc("POST /api/executors/{name}/restart", s.handleAction(s.opts.Sup.RestartExecutor))
 	mux.HandleFunc("GET /api/executors/{name}/log", s.handleLog)
+	mux.HandleFunc("POST /api/executors/import", s.handleImport)
 }
 
 // handleAPIError 统一把 handler 错误写回响应（apiError 之外的错误按 500）。
@@ -390,4 +392,69 @@ func orDefaultBool(p *bool) *bool {
 		return config.BoolPtr(true)
 	}
 	return p
+}
+
+// importRequest POST /api/executors/import（T09-F5 Web 导入；CLI 走本地
+// launchcmd.ParseScript，此端点供 Web 复用同一解析与改名建议逻辑）。
+type importRequest struct {
+	Script   string `json:"script"`    // 旧脚本全文（EXECUTORS 数组）
+	WithLogs bool   `json:"with_logs"` // 归档旧布局日志（可选；Web v1 不带）
+}
+
+// importResultRow 是单条导入结果。
+type importResultRow struct {
+	Name   string `json:"name"`
+	Status string `json:"status"` // imported / renamed / failed / skipped
+	Detail string `json:"detail,omitempty"`
+}
+
+// handleImport POST /api/executors/import：解析旧脚本 → 坏行跳过报告 →
+// 中文名自动采纳建议名（exec-<id>，Web 侧无逐条交互确认，结果标记
+// renamed 供展示）→ 逐条走与 add 相同的解析校验与落盘。
+func (s *Server) handleImport(w http.ResponseWriter, r *http.Request) {
+	var req importRequest
+	if err := decodeBody(r, &req); err != nil {
+		handleAPIError(w, err)
+		return
+	}
+	if strings.TrimSpace(req.Script) == "" {
+		handleAPIError(w, badRequest("script 不能为空（粘贴旧脚本全文）"))
+		return
+	}
+	imported, err := launchcmd.ParseScript(req.Script)
+	if err != nil {
+		handleAPIError(w, badRequest("脚本解析失败："+err.Error()))
+		return
+	}
+	var rows []importResultRow
+	for _, imp := range imported {
+		if imp.ParseErr != nil {
+			rows = append(rows, importResultRow{Name: imp.Name, Status: "skipped", Detail: imp.ParseErr.Error()})
+			continue
+		}
+		name := imp.Name
+		status := "imported"
+		detail := ""
+		if imp.NeedsRename {
+			name = imp.SuggestedName
+			status = "renamed"
+			detail = "原名 " + imp.Name
+		}
+		addErr := s.mutateConfig(func(c *config.Config) error {
+			if c.FindExecutor(name) != nil {
+				return alreadyExists(name)
+			}
+			c.Executors = append(c.Executors, config.Executor{
+				Name: name, Command: imp.Command,
+				Restart: config.RestartPolicy{Enabled: config.BoolPtr(true), Backoff: "exponential"},
+			})
+			return nil
+		})
+		if addErr != nil {
+			rows = append(rows, importResultRow{Name: name, Status: "failed", Detail: addErr.Error()})
+			continue
+		}
+		rows = append(rows, importResultRow{Name: name, Status: status, Detail: detail})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"results": rows})
 }
