@@ -212,7 +212,7 @@ awem version
 
 - React SPA（`go:embed` 打包进二进制），v1 中文，i18n 框架预留、文案走语言包（D5）。
 - 页面：
-  - **总览**：执行器卡片/表格——名称、本地进程态、连接状态、平台 ONLINE/BUSY/OFFLINE、模型、autostart、漂移黄标、重启次数；行内 start/stop/restart。
+  - **总览**：执行器卡片/表格——名称、本地进程态、连接状态、平台 ONLINE/BUSY/OFFLINE、模型、autostart、漂移黄标、重启次数；行内 start/stop/restart；首列多选后支持批量 start/stop/delete（串行调用单条 API，删除保留日志）。
   - **执行器详情**：WebSocket 实时日志尾部流 + 历史日志分页 + 结构化编辑表单。
   - **添加/导入**：粘贴命令 → 解析预览（高亮 token/executor-id/model）→ 保存；导入旧脚本。
   - **设置**：平台地址/MCP 令牌、轮询间隔、日志保留。

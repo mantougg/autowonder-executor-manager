@@ -54,6 +54,39 @@ export const zh = {
     remove: '删除',
     addExecutor: '添加执行器',
   },
+  batch: {
+    barLabel: '批量操作',
+    selectAll: '全选执行器',
+    selectRow: (name: string) => `选择执行器 ${name}`,
+    selected: (n: number) => `已选 ${n} 项`,
+    clear: '取消选择',
+    action: {
+      start: '启动',
+      stop: '停止',
+      delete: '删除',
+    },
+    stopDialogTitle: (n: number) => `停止 ${n} 个执行器`,
+    stopDialogBody: (n: number) => `将终止 ${n} 个执行器的子进程（整棵进程树优雅终止）。`,
+    stopDialogConfirm: (n: number) => `停止 ${n} 个执行器`,
+    deleteDialogTitle: (n: number) => `删除 ${n} 个执行器`,
+    deleteDialogIntro: (n: number) => `将删除选中的 ${n} 个执行器，此操作不可恢复。本地日志保留。`,
+    deleteDialogConfirm: (n: number) => `删除 ${n} 个执行器`,
+    deleteBlocked: (n: number, names: string) =>
+      `有 ${n} 个运行中，请先停止后再删除${names ? `：${names}` : ''}`,
+    done: {
+      start: (n: number) => `已启动 ${n} 个执行器`,
+      stop: (n: number) => `已停止 ${n} 个执行器`,
+      delete: (n: number) => `已删除 ${n} 个执行器`,
+    },
+    partial: (action: string, ok: number, fail: number, detail: string) =>
+      `已${action} ${ok} 个执行器，${fail} 个失败${detail ? `：${detail}` : ''}`,
+    refreshFailed: '无法获取执行器最新状态，请重试',
+    reason: {
+      notFound: '不存在',
+      running: '运行中冲突',
+      unknown: '未知错误',
+    },
+  },
 } as const
 
 export type Texts = typeof zh

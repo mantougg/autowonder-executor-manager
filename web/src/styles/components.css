@@ -144,6 +144,42 @@
   opacity: 1;
 }
 
+/* 首列复选框（批量选择） */
+.awem-col-check {
+  width: 40px;
+  text-align: center;
+}
+.awem-table th.awem-col-check,
+.awem-table td.awem-col-check {
+  padding-right: 0;
+}
+.awem-checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--awem-accent);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.awem-checkbox:disabled {
+  cursor: not-allowed;
+}
+
+/* 批量操作条（有选中项时显示在标题行与表格之间） */
+.awem-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--awem-space-2);
+  padding: var(--awem-space-2) var(--awem-space-3);
+  background: var(--awem-bg-subtle);
+  border: 1px solid var(--awem-border);
+  border-radius: var(--awem-radius-card);
+}
+.awem-bulk-count {
+  margin-right: auto;
+  font-size: var(--awem-text-13);
+  color: var(--awem-fg-secondary);
+}
+
 /* --- 表单（§4：label 在上，间距 8px；敏感字段掩码 + 眼睛） --- */
 .awem-field {
   display: flex;
