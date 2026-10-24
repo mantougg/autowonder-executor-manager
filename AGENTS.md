@@ -38,9 +38,13 @@
 
 - 版本 semver，自 **v0.1.0** 起；打 `v*` tag 推送即触发 release workflow 自动发布（五平台 + checksums）。
 - **tag 必须是 annotated tag，且 message 为与上一个 tag 之间的变更总结与列举**
-  （首个 tag 相对仓库起点）：按子任务/功能块组织，先一句话总结再逐条列举；
-  末尾注明已知余量/未验证项。禁止裸 tag（`git tag v0.1.0`）与空 message。
+  （首个 tag 相对仓库起点）：按子任务/功能块组织，先一句话总结再逐条列举
+  （完成了什么功能 / 修复了什么问题 / 优化了什么内容）；末尾注明已知余量/
+  未验证项。禁止裸 tag（`git tag v0.1.0`）与空 message。
   示例：`git tag -a v0.1.0 -m "$(cat TAGNOTES.md)"`。
+- **GitHub Release 的正文即 tag 的 message**（workflow 自动提取，不用
+  generate_release_notes 的链接式自动摘要）；workflow 运行标题显示版本名
+  （`run-name`），而非触发提交的 message。
 
 ## 技术约定
 
