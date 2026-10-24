@@ -26,7 +26,7 @@
 | T02 | 配置与存储 | T01 | 6/6 | ✅ 已检查 | [t02-config-storage.md](t02-config-storage.md) |
 | T03 | 启动命令解析与导入 | T01 | 6/6 | ✅ 已检查 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
 | T04 | 日志系统 | T01、T02 | 6/6 | ✅ 已检查 | [t04-logging.md](t04-logging.md) |
-| T05 | Supervisor 进程守护 | T02、T03、T04 | 3/7 | 🔄 进行中 | [t05-supervisor.md](t05-supervisor.md) |
+| T05 | Supervisor 进程守护 | T02、T03、T04 | 4/7 | 🔄 进行中 | [t05-supervisor.md](t05-supervisor.md) |
 | T06 | daemon 与本地 API | T02、T04、T05 | 0/7 | ⬜ 未开始 | [t06-daemon-api.md](t06-daemon-api.md) |
 | T07 | CLI 子命令集 | T03、T05、T06 | 0/10 | ⬜ 未开始 | [t07-cli.md](t07-cli.md) |
 | T08 | 平台状态联动（只读） | T02、T03、T06 | 0/6 | ⬜ 未开始 | [t08-platform-sync.md](t08-platform-sync.md) |
@@ -91,3 +91,4 @@
 | 2026-10-25 | T05-F1 ✅ | 子进程 spawn（跨平台 npx 解析/argv 重建/env 注入/workspace_root 覆盖），单测+交叉编译验证通过（23/71） |
 | 2026-10-25 | T05-F2 ✅ | 守护状态机：崩溃退避拉起/稳定重置/可关/人为停止不拉起，-count=5 稳定（24/71） |
 | 2026-10-25 | T05-F3 ✅ | 停止与进程树终止：pgid 整树 SIGTERM/宽限/SIGKILL，无残留断言+幂等（25/71） |
+| 2026-10-25 | T05-F4 ✅ | autostart 拉起与 ApplyConfig 热加载语义（新增即拉/存量不动/消失即停）（26/71） |

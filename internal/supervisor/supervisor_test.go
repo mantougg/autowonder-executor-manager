@@ -90,7 +90,7 @@ func execWith(name, fakeFlags string) config.Executor {
 	}
 }
 
-// setCfg 注入配置并返回它。
+// setCfg 注入配置并返回它（走 ApplyConfig 统一入口）。
 func (e *testEnv) setCfg(t *testing.T, execs ...config.Executor) *config.Config {
 	t.Helper()
 	cfg := config.Default()
@@ -98,7 +98,7 @@ func (e *testEnv) setCfg(t *testing.T, execs ...config.Executor) *config.Config 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("测试配置不合法：%v", err)
 	}
-	e.sup.SetConfig(&cfg)
+	e.sup.ApplyConfig(&cfg)
 	return &cfg
 }
 
@@ -249,7 +249,7 @@ func TestSpawnNpxMissingClearError(t *testing.T) {
 	t.Cleanup(sup.Shutdown)
 	cfg := config.Default()
 	cfg.Executors = []config.Executor{execWith("e1", "")}
-	sup.SetConfig(&cfg)
+	sup.ApplyConfig(&cfg)
 
 	err := sup.StartExecutor("e1")
 	if err == nil {

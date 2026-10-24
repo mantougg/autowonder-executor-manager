@@ -50,8 +50,8 @@
 
 ### F4 · autostart 拉起
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：daemon 启动与配置热加载后新增条目时，拉起所有 `autostart=true` 的执行器（新增条目即时拉起、存量未运行的不动——语义记录）；失败不阻塞其他执行器，逐条记事件。
 - **验收要点**：
   - 假进程单测：autostart=true 在 Supervisor 启动时被拉起，false 不动；
@@ -93,6 +93,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F4 | ✅ | `go test ./internal/supervisor/ -run 'TestApplyConfig' -v -count=3` 稳定通过：autostart=true 应用配置即拉起、false 不动；注入"首次 npx 解析失败"的解析器——first=Failed 且有 executor_spawn_fail 事件，second 照常 Running（失败不阻塞）；热加载四阶段——新增 autostart 即时拉起、存量未运行不动、运行中进程配置重放不重启（pid 前后一致断言）、消失条目停止+移除且有 executor_stop 事件 |
 | 2026-10-25 | F3 | ✅ | `go test ./internal/supervisor/ -run 'TestStop' -v -count=3` 稳定通过：假进程树（tree 模式父起子进程）stop 后父/子进程均退出、`kill(-pgid, 0)` 探测进程组为空（无残留断言）；优雅期退出事件="人为停止（优雅退出…）"且无强杀字样；ignore-term 假进程等就绪文件（SIGTERM 忽略已生效）后 stop → 等满注入宽限 300ms 才 SIGKILL，事件含"宽限超时强杀"，耗时断言 ≥250ms；从未启动/已停止重复 stop 均 no-op 成功，未知执行器报"未找到" |
 | 2026-10-25 | F2 | ✅ | `go test ./internal/supervisor/ -run 'TestCrash|TestStable|TestManual' -v` 4 用例通过且 `-count=5` 稳定：崩溃自动拉起（假进程 exit 7，事件含退出码；第 1/2 次退避 20ms/40ms ×2 序列断言）；稳定运行 150ms（注入 StableReset，快进等价）后崩溃 → 退避从 20ms 重新起步且事件含"退避计数已重置"；restart.enabled=false 崩溃后 Failed 不拉起（150ms 观察窗，restarts=0）；人为 stop 不拉起 + 重复 stop 幂等 |
 | 2026-10-25 | F1 | ✅ | `go test ./internal/supervisor/ -v` 6 用例通过：spawn 成功且 pid 记录并存活（TestStartExecutorSpawnRecordsPid）；`AUTOWONDER_WORKSPACE_ROOT` 默认值注入经假进程回显验证（TestSpawnInjectsWorkspaceRootEnv）；workspace_root 覆盖走 env+argv 双通道（TestSpawnWorkspaceRootOverride，argv 文件断言含 `--workspace-root <path>`）；`--debug` 原样透传（TestSpawnDebugFlagPassthrough）；npx 缺失错误含中文与 awem doctor 指引、状态 Failed、events 有 executor_spawn_fail（TestSpawnNpxMissingClearError）；默认解析器本机实测可用。`GOOS=windows/darwin go build ./...` 通过（npx.cmd→cmd.exe /c 包装与 taskkill /T 分支编译在位，真机验证归 T10）。三绿通过，测试后无 fakeproc 残留进程 |
@@ -106,3 +107,4 @@
 | 2026-10-25 | F1 ✅ | 实现：`launchcmd.Argv`（命令→argv，保留原始 token 形态）；config 新增可选 `workspace_root` 字段（design §6“可按执行器覆盖”，覆盖经 argv 追加 `--workspace-root` 生效）；npx 解析策略——Unix 为 LookPath→`sh -lc 'command -v npx'` 回退（覆盖 GUI/服务启动缺 profile PATH 场景），Windows 为 LookPath(npx.cmd→npx.exe→npx) 且 spawn 经 `cmd.exe /c` 包装（Go 不能直接 exec 批处理）；子进程 spawn 时 `Setpgid=true` 自成进程组（F3 整树终止的前提）；事件枚举新增 `executor_spawn_fail`（T04 集合的增量） |
 | 2026-10-25 | F2 ✅ | 状态机选型：每执行器一个 supervise 循环（人为启动换代 gen，循环内自动拉起不换 goroutine）；状态枚举 Starting/Running/Backoff/Stopping/Stopped/Failed（对外契约，RunningLike=Starting/Running/Backoff/Stopping）；快照 BackoffDelay 取崩溃时算好的 pendingDelay；稳定期判定基准=本次进程 startedAt（Clock.Now 注入点，测试用毫秒级参数+真实时钟等价快进） |
 | 2026-10-25 | F3 ✅ | 实现要点：spawn 即 Setpgid（组长=自身 pid），停止=SIGTERM 整组 → 宽限 → SIGKILL 整组；Windows 走 taskkill /T（无 /F → /F 强杀），批处理 npx.cmd 经 cmd.exe /c 包装 exec；测试陷阱记录——SIGTERM 落在子进程 exec 初始化窗口会按默认处置杀死（真实场景等价于刚启动即停止=优雅退出），ignore-term 测试须等就绪文件再发信号 |
+| 2026-10-25 | F4 ✅ | 语义定稿：SetConfig 升级为 ApplyConfig 统一入口（daemon 启动注入首份配置=全部条目视为新增，即 autostart 拉起；热加载增量判定）；新增(autostart)即拉 / 存量未运行不动 / 运行中进程不重启（下次启动生效）/ 消失条目停止并移除受管单元；启动失败逐条记事件不阻塞 |

@@ -87,21 +87,58 @@ func New(opts Options) *Supervisor {
 	return &Supervisor{opts: opts, units: map[string]*unit{}}
 }
 
-// SetConfig 设置当前配置（F4 的 ApplyConfig 在此基础上扩展热加载语义）。
-// 已在管 unit 的配置即时更新——运行中进程不受影响，下次启动生效。
-func (s *Supervisor) SetConfig(cfg *config.Config) {
+// ApplyConfig 应用新配置（daemon 启动注入首份配置与热加载换配置的统一入口）。
+// 语义（记录于任务文档）：
+//   - 新增条目：autostart=true 立即拉起；false 只登记不动；
+//   - 存量条目：配置即时更新——运行中进程不受影响（下次启动生效），
+//     未运行的不主动拉起（"存量未运行的不动"）；
+//   - 消失条目：停止其运行中进程（整树，事件照常）并移除受管单元；
+//   - 首次调用（old=nil）视全部条目为新增，即 daemon 启动的 autostart 拉起。
+func (s *Supervisor) ApplyConfig(cfg *config.Config) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	old := s.cfg
 	s.cfg = cfg
-	if cfg == nil {
-		return
-	}
-	for i := range cfg.Executors {
-		if u, ok := s.units[cfg.Executors[i].Name]; ok {
-			u.mu.Lock()
-			u.exec = cfg.Executors[i]
-			u.mu.Unlock()
+	var removed []string
+	if old != nil && cfg != nil {
+		for i := range old.Executors {
+			if cfg.FindExecutor(old.Executors[i].Name) == nil {
+				removed = append(removed, old.Executors[i].Name)
+			}
 		}
+	}
+	if cfg != nil {
+		for i := range cfg.Executors {
+			if u, ok := s.units[cfg.Executors[i].Name]; ok {
+				u.mu.Lock()
+				u.exec = cfg.Executors[i]
+				u.mu.Unlock()
+			}
+		}
+	}
+	// 判定新增条目（含首次调用的全部条目）
+	var fresh []config.Executor
+	if cfg != nil {
+		for i := range cfg.Executors {
+			if old == nil || old.FindExecutor(cfg.Executors[i].Name) == nil {
+				fresh = append(fresh, cfg.Executors[i])
+			}
+		}
+	}
+	s.mu.Unlock()
+
+	// 消失条目：停止并移除（StopExecutor 对未运行单元为 no-op）
+	for _, name := range removed {
+		_ = s.StopExecutor(name)
+		s.mu.Lock()
+		delete(s.units, name)
+		s.mu.Unlock()
+	}
+	// 新增条目：仅 autostart=true 拉起；失败只记事件，不阻塞其余条目
+	for i := range fresh {
+		if !fresh[i].Autostart {
+			continue
+		}
+		_ = s.StartExecutor(fresh[i].Name)
 	}
 }
 
