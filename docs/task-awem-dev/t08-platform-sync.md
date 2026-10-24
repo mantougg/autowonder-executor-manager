@@ -46,8 +46,8 @@
 
 ### F4 · 配置漂移检测
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：对比本地解析字段（model / reasoning-effort / context-window / memory-mode / max-tasks）与平台 `get_executor_launch_config`：不一致 → 产出 drift 结构（哪些字段、本地值 vs 平台值），供 CLI status 与 UI 黄标展示，文案按 design #9："需 restart 或平台配置已变"（v1 不回写）；权限不足 → 跳过该项不报错；漂移检测频率与轮询同周期或更低（选定记录）。
 - **验收要点**：
   - 假服务单测：构造每个字段的不一致 → drift 字段与双侧值正确；全部一致 → 无 drift；
@@ -81,6 +81,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F4 | ✅ 通过 | 实跑 `go test ./internal/platform/ -run TestDrift -count=1`：字段不一致与一致（model qfmodel≠dfmodel 与 context-window 1000000≠400000 恰两处漂移且双侧值正确；reasoning-effort 一致不计；改平台配置后全部一致 → 无漂移）；查询失败静默跳过（权限不足 → Refresh 不报错、状态 ONLINE、无 drift、查询已尝试）；未归属不查询（99999 unowned 且无 launch_config 调用）。开发中修复：checkDrift 初版在状态表更新前执行导致首轮漂移写入丢失（顺序调整为状态更新后合并）。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F3 | ✅ 通过 | 实跑 `go test ./internal/platform/ -run Test轮询 -count=1`：状态变化反映到 Lookup（ONLINE→改 BUSY 后刷新即 BUSY 且心跳解析；未归属 id → unowned）；不可达与恢复（清空假服务工具 → Refresh 报错且 Lookup=unreachable、FailCount=1；恢复种子后回 ONLINE、计数清零）；Start 循环（50ms 周期 2s 内 ≥3 次 list_executors；ctx 取消即退出）；未配置平台 Start 立即返回不启动。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F2 | ✅ 通过 | 实跑 `go test ./internal/platform/ -run "Test发现|Test缓存|Test平台侧|Test未配置" -count=1`：多空间映射正确（10086→10000、20001→10001）且缓存落盘可读回；权限不足空间跳过（platform_skip 事件 + 可达空间归属仍建立）；缓存命中避免重复扫描（二次 ensureDiscovery list_projects 仍 1 次；新增本地 id 触发第 2 次全量）；平台侧删除后全量发现归属移除；未配置平台 ensureDiscovery no-op 且 Lookup 未命中。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F5 | ✅ 通过 | 实跑 `go test ./internal/platform/ -run "Test白名单|Test平台包" -count=1`：白名单外工具（create_workitem/assign_workitem/delete_executor/transition_workitem/方法名伪装/任意串）全部在客户端层拒绝且 httpCalled=false（无 HTTP 发出）；白名单恰为只读三件套；*Client 导出方法恰为 ListProjects/ListExecutors/GetExecutorLaunchConfig；包内源码（platform.go/mcp.go）不含写工具字符串。全仓三绿 + 交叉编译。 |

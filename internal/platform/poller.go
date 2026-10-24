@@ -112,7 +112,6 @@ func (s *Service) Refresh(ctx context.Context) error {
 	}
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.failCount = 0 // 成功清零（与入口无关保持一致）
 	for id := range locals {
 		if e, ok := remote[id]; ok {
@@ -123,6 +122,11 @@ func (s *Service) Refresh(ctx context.Context) error {
 			s.status[id] = Status{State: "unowned"}
 		}
 	}
+	s.mu.Unlock()
+
+	// 漂移检测与轮询同周期（记录于任务文档）；在状态表更新后执行，
+	// 漂移结果合并进对应执行器的 Status
+	s.checkDrift(cctx)
 	return nil
 }
 
