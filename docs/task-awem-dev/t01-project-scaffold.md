@@ -28,8 +28,8 @@
 
 ### F2 · 入口 main 与子命令分发框架
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-24 自检）
 - **开发描述**：`cmd/awem/main.go` 实现子命令注册与分发骨架：`usage()` 输出中文用法；未知子命令/缺参数 → 退出码 2；框架层支持全局 flag `--json`、`--yes` 的解析与透传（各子命令自己消费）。本期只注册 `version` 一个真实子命令（T01 内可用），其余子命令占位注册、调用即报"未实现"（退出码 1），保证后续任务往框架里填肉不改骨架。选型建议：标准库 `flag` 自举（零依赖、退出码语义自控）；若改用 cobra 等需在变更记录说明。
 - **验收要点**：
   - `awem version` 输出版本号（可先为 `0.0.0-dev`，ldflags 注入位留好）；
@@ -74,6 +74,7 @@
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
 | 2026-10-24 | F1 | ✅ | 实跑 `go mod init awem` 后 `go build ./... && go vet ./... && go test ./...` 三绿（输出 no test files，无报错）；目录树与 design.md §16 一致（cmd/awem + internal/{config,launchcmd,logs,supervisor,platform,api,cli} 各含中文包注释 doc.go，web/ 含占位页）；变更记录已含 module 名与 dist 策略选型 |
+| 2026-10-24 | F2 | ✅ | 实测真实二进制：`awem version`→`awem 0.0.0-dev`、`awem --json version`→`{"version":"0.0.0-dev"}`；`awem 不存在命令`与无参数均退出码 2 且输出中文用法；`awem add`（占位）→`错误：子命令 "add" 尚未实现` 退出码 1；单测 `go test ./internal/cli/ -v` 全 PASS（含全局 flag 透传、`--flag=false` 形式、退出码用例） |
 
 ## 变更记录
 
@@ -84,3 +85,5 @@
 | 2026-10-24 | F1 选型：module 名 | `go mod init awem`。选短名而非仓库名全路径：设计要求二进制/包名即 `awem`，本地无远程 module path；后续开源改 import path 仅涉及各 doc.go 无外部引用，成本可控（任务文档预留的方案） |
 | 2026-10-24 | F1 选型：web/dist 策略 | **构建时生成、仓库忽略**（.gitignore 忽略 web/dist/）。占位页源文件入库为 `web/placeholder/index.html`，Makefile build 在 `web/dist/` 缺失时自动复制占位页（F4 实现），保证 fresh clone 走 make 可构建；go:embed 不读 .gitignore，本地有 dist 即可嵌入（F5） |
 | 2026-10-24 | F1 ✅ | 目录骨架 + module 初始化完成，三绿通过 |
+| 2026-10-24 | F2 选型：CLI 框架 | **不用 cobra，标准库自举**（internal/cli 手写 Registry+Dispatch）。理由：退出码 0/1/2/3/4/5 语义需完全自控（cobra 的 SilenceUsage/SilenceErrors 处理退出码绕）、零依赖符合单二进制极简形态、子命令规模小（14 个）不需要自动补全等重特性。全局 flag `--json/--yes` 由分发器从 argv 任意位置抽出（支持 `--flag=false` 形式）透传给子命令；版本号变量放 `internal/version`（ldflags 注入点） |
+| 2026-10-24 | F2 ✅ | 分发框架 + version 子命令 + 13 个占位命令，验收通过 |
