@@ -1,0 +1,91 @@
+# T03 · 启动命令解析与导入
+
+- **子任务状态**：⬜ 未开始
+- **前置依赖**：T01（与 T02 的名称/校验规则衔接：解析结果供 T02 F3 校验使用）
+- **设计依据**：[design.md](../design/design.md) §5.3（命令解析与结构化字段）、§8.1（add/import 命令）、决策 #8/#15
+- **产物范围**：`internal/launchcmd/`（纯函数库：解析、重建、导入解析）+ 单测矩阵
+
+## 规范速查（开工前逐条确认；完整规范见 [conventions.md](conventions.md)）
+
+1. 开工前通读 conventions.md 与 design.md §5.3。
+2. 文档优先：字段集合以 §5.3 为准（runtime 版本、ws-url、token、executor-id、provider、model、reasoning-effort、context-window、memory-mode、max-tasks、--token-aware-enable、--debug + 未知 flag passthrough）；要支持新 flag 先改文档。
+3. 本任务全部是纯函数库（不碰进程、不碰网络），**必须单测驱动**，测试矩阵写在 F6。
+4. 注释文档中文、标识符英文；功能点完成前 `go build/vet/test` 三绿。
+5. 状态即改即记：本文件与 [index.md](index.md) 同步 + 双方变更记录各加一行。
+6. 本任务专属：未知 flag **原样保序保留**是硬要求（roundtrip 不丢任何信息）；旧脚本名称常为中文，与 D8 字符集冲突，导入必须走改名流程。
+
+## 功能点
+
+### F1 · 命令 tokenize 与前缀识别
+
+- **开发状态**：⬜ 未开始
+- **检查状态**：⬜ 未检查
+- **开发描述**：shell 风格拆词（处理单/双引号、转义、多空格/Tab），识别 `npx [-y] autowonder@<ver> connect …` 前缀结构，提取 runtime 版本 `<ver>`；容忍用户粘贴时带前导 `nohup`、尾部 `&` 等旧脚本残留（ stripping 规则记录到变更记录）。非 `autowonder connect` 命令报"不支持的命令"用法错误（退出码语义归 T07，本层返回结构化错误）。
+- **验收要点**：
+  - 单测：引号包裹的 token、多空格、`nohup … &` 包装、版本号提取、非 npx/autowonder 前缀报错；
+  - 拆词结果与 shell 语义一致（引号内容不成词边界）。
+
+### F2 · 结构化字段解析
+
+- **开发状态**：⬜ 未开始
+- **检查状态**：⬜ 未检查
+- **开发描述**：从 connect 参数解析出 §5.3 全部已知字段：`--ws-url`、`--token`、`--executor-id`、`--provider`、`--model`、`--reasoning-effort`、`--context-window`、`--memory-mode`、`--max-tasks`、布尔 `--token-aware-enable`、`--debug`；未知 flag 进 passthrough 列表（**保序**）。校验：executor-id 数字、token 非空、provider 枚举（qoder/qodercn/claude/codex）；错误逐字段定位（哪个 flag、什么问题）。
+- **验收要点**：
+  - 单测覆盖每个字段正常/缺失/非法三种情况；
+  - `--flag=value` 与 `--flag value` 两种写法都支持；
+  - 未知 flag（如未来的新参数）完整保留在 passthrough。
+
+### F3 · 命令重建（roundtrip）
+
+- **开发状态**：⬜ 未开始
+- **检查状态**：⬜ 未检查
+- **开发描述**：结构化字段 + passthrough → 重新生成完整命令串（编辑视图保存时用）。保证：`parse(render(parse(x))) == parse(x)`（幂等）；未知 flag 不丢；渲染顺序稳定（已知字段按固定顺序，passthrough 按原顺序追加）；token 等含特殊字符的值正确加引号。
+- **验收要点**：
+  - 幂等性单测（含 passthrough 的复杂样例）；
+  - 编辑任一已知字段后重建，passthrough 原样保留；
+  - 含空格/引号的值 roundtrip 不变形。
+
+### F4 · 旧脚本 import 解析
+
+- **开发状态**：⬜ 未开始
+- **检查状态**：⬜ 未检查
+- **开发描述**：解析旧 `executor-manager.sh` 的 `EXECUTORS` 数组（真实形态见 `~/.agents/skills/autowonder-project-onboarding/templates/executor-manager.sh`：每行 `"名称|启动命令"`，可能混入注释行/空行/示例占位符）。产出 `[]Imported{Name, Command}`；名称不合规（中文等，违反 D8 字符集）→ 生成合规建议名（如拼音/编号方案，策略记录）并标记"需改名确认"；命令部分复用 F1/F2 解析。
+- **验收要点**：
+  - 用真实模板文件做单测 fixture（拷入 `testdata/`）；
+  - 注释行、空行、含 `<runtimeVersion>` 等未替换占位符的示例行被跳过或标记，不静默导入坏数据；
+  - 中文名触发改名建议而非直接失败。
+
+### F5 · 旧日志归档（--with-logs 数据准备）
+
+- **开发状态**：⬜ 未开始
+- **检查状态**：⬜ 未检查
+- **开发描述**：提供归档函数：把旧脚本布局 `~/.autowonder-executor/<name>.log` 拷贝到 awem 的 `data/logs/executors/<name>.log`（名称以导入时确认的新名为准）；源不存在则跳过不报错；拷贝记录结构化返回（供 CLI 汇总输出）。不删源文件。
+- **验收要点**：
+  - 单测：存在/不存在/改名映射三种情况；
+  - 只读源、只写目标，不产生副作用于旧目录。
+
+### F6 · 单测矩阵与边界覆盖
+
+- **开发状态**：⬜ 未开始
+- **检查状态**：⬜ 未检查
+- **开发描述**：汇总建立 `internal/launchcmd` 的测试矩阵并补齐缺口：正常完整命令、缺字段、坏值、引号/空格变形、nohup 包装、未知 flag 多个、--flag=value 形式、中文/非法名、幂等 roundtrip、旧脚本全文 fixture。本功能点是"测试完备性"的收口，前五个功能点的测试若有遗漏在此补全。
+- **验收要点**：
+  - `go test ./internal/launchcmd/...` 全绿且覆盖上述每类场景（表驱动用例清单可在测试文件注释中索引到本节）；
+  - 覆盖率不低于 85%（`go test -cover`）。
+
+## 完成与检查判定
+
+- 全部功能点 🟠 且三绿 → 子任务状态改 🟠 已完成。
+- 检查环节逐功能点跑"验收要点"（实际执行测试、抽查用例），全 ✅ → 子任务 ✅；任一 ❌ → 打回 🔄 并登记"检查记录"。
+
+## 检查记录
+
+| 日期 | 功能点 | 结果 | 问题与处理 |
+|---|---|---|---|
+| — | — | — | — |
+
+## 变更记录
+
+| 日期 | 动作 | 说明 |
+|---|---|---|
+| 2026-10-24 | 创建 | 由任务计划生成 |

@@ -1,0 +1,10 @@
+# 构建产物
+/awem
+/awem.exe
+/dist/
+web/node_modules/
+web/dist/
+
+# 本地环境
+*.local
+.DS_Store
