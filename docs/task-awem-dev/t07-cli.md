@@ -119,7 +119,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
-| 2026-10-25 | F3 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestStatus -count=1`：TestStatus单个详细（经 supervisor 直启后详情含 运行状态：running、pid、uptime、连接状态、ID/provider/autowonder@0.3.22、平台 —、漂移 —）、TestStatus全部摘要（共 2 个执行器）、TestStatus不存在退出码3（文本与 --json 均 3）、TestStatusJSON字段覆盖设计8_1（state/pid/started_at/uptime_ms/restarts/conn/model/platform/drift 全在）。 |
+| 2026-10-25 | F3 | ✅ 通过（含一次返工） | 首次提交时 go test 输出经管道 grep/tail 吞掉退出码，cli 包实际 FAIL（未启动执行器 local.conn 为空串，--json 断言失败）仍被提交——违反"提交前三绿"。随即修复：api 视图层对空 conn 兜底为 unknown（未启动/未见过连接日志统一语义），实跑全仓 go build/vet/test 三绿后补提交。教训：验证命令不得经管道掩盖退出码。 | 实跑 `go test ./internal/cli/ -run TestStatus -count=1`：TestStatus单个详细（经 supervisor 直启后详情含 运行状态：running、pid、uptime、连接状态、ID/provider/autowonder@0.3.22、平台 —、漂移 —）、TestStatus全部摘要（共 2 个执行器）、TestStatus不存在退出码3（文本与 --json 均 3）、TestStatusJSON字段覆盖设计8_1（state/pid/started_at/uptime_ms/restarts/conn/model/platform/drift 全在）。 |
 | 2026-10-25 | F2 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestList -count=1`：TestList有执行器表格（e1/e2、stopped、unknown 连接态、qfmodel 模型、共 2 个、平台占位 —）、TestList空列表引导（"还没有执行器" + awem add 提示，退出码 0）、TestListJSON与APISchema一致（executors[0] 含 name/command/autostart/restart/parsed/local/platform/drift 全字段）。 |
 | 2026-10-25 | F1 | ✅ 通过 | 实跑 `go test ./internal/cli/ -count=1`（6 用例）：TestAdd正常添加与人读摘要（exec-10086 自动命名、摘要含 ID/provider/版本、**明文 token 不出现**、config.toml 落盘）、TestAdd默认名与自定义名（--name 生效；重名退出码 4）、TestAdd坏命令退出码2（executor-id 非数字/非 npx 命令/缺命令 → 2）、TestAdd文件输入与参数等价（--file 落盘一致）、TestAddJSON输出掩码（合法 JSON、token 含 ***、--start 后 local.state=running 真子进程）、TestAdd开关落盘（--autostart/--no-restart/--debug 逐项断言）。全仓三绿 + 交叉编译。 |
 

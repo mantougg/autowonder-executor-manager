@@ -92,6 +92,10 @@ func (s *Server) buildExecutorView(e config.Executor) executorView {
 		}
 	}
 	if st, ok := s.opts.Sup.SnapshotOne(e.Name); ok {
+		conn := st.Conn
+		if conn == "" {
+			conn = supervisor.ConnUnknown // 未启动/未见过连接日志：视图统一 unknown
+		}
 		v.Local = localView{
 			State:          string(st.State),
 			PID:            st.PID,
@@ -99,7 +103,7 @@ func (s *Server) buildExecutorView(e config.Executor) executorView {
 			UptimeMS:       st.Uptime.Milliseconds(),
 			Restarts:       st.Restarts,
 			BackoffDelayMS: st.BackoffDelay.Milliseconds(),
-			Conn:           string(st.Conn),
+			Conn:           string(conn),
 			LastExit:       st.LastExit,
 		}
 	} else {
