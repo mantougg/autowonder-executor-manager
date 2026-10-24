@@ -1,6 +1,6 @@
 # T07 · CLI 子命令集
 
-- **子任务状态**：🔄 进行中
+- **子任务状态**：✅ 已检查
 - **前置依赖**：T03、T05、T06（API 客户端 + 惰性拉起）
 - **设计依据**：[design.md](../design/design.md) §8（CLI 设计）、§5.3（add/edit 语义）、D1（命令集/退出码）
 - **产物范围**：`internal/cli/` 各子命令（add/list/status/start/stop/restart/edit/remove/log/import/doctor/reload/version）
@@ -103,8 +103,8 @@
 
 ### F10 · reload / version 与全局行为收口
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：`awem reload`（接 T06 F7）、`awem version`（含构建信息）；全局行为收口：所有子命令的 `--json` schema 汇总表（变更记录）、错误信息统一中文统一格式、退出码全表复核（对照 design §8.2 逐命令过一遍）、`awem` 无参数显示用法（退出码 2）。
 - **验收要点**：
   - 退出码矩阵单测/集成测试：每命令 × 成功/用法错/未找到/已存在/daemon 挂（5）全覆盖；
@@ -119,6 +119,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F10 | ✅ 通过 + 子任务 ✅ | 实跑 `go test ./internal/cli/ -count=1`（含 Test退出码矩阵 30 子用例：add 成功/已存在 4/坏命令 2/缺参数 2；list 成功/多余 2；status 成功/全部/不存在 3/多余 2；start/stop/restart 成功/不存在 3/多余 2；edit 成功/不存在 3/无修改 2/坏 flag 2；remove 成功/不存在 3/缺名称 2；log 成功/不存在 3/缺名称 2；reload 成功/多余 2；doctor 成功/多余 2；daemon 挂 5 由 TestCLI惰性拉起daemon 场景④覆盖）、TestJSON汇总表抽查（list 8 字段/status executor 包装/log name+tail+lines）、Test无参数显示用法并退出2、Test错误输出统一中文（退出码语义；JSON 合法性由 T01 command_test 覆盖）。开发中修复：reload --json 断言未考虑 json.Indent 冒号后空格（改解析断言）。全仓三绿 + 交叉编译。**T07 全部 10 功能点 ✅，子任务 ✅。** |
 | 2026-10-25 | F9 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestDoctor -count=1`：TestDoctor本机全项输出（5 项全列出、平台连通 — 占位、结尾"全部通过"、退出码 0）、TestDoctor缺失npx退出码1（注入 LookPath 全失败 → ❌ + 建议 + 退出 1）、TestDoctorNode版本过低（注入 v16.20.0 → "版本过低" + 退出 1）、TestDoctor按Provider检查CLI（配置 qoder 执行器且注入 qoder 缺失 → "缺少 qoder" + 退出 1）、TestDoctorJSON输出（--json 纯数组 5 项、平台连通 Skipped=true）。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F8 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestImport -count=1`：TestImport预览确认与落盘（拒绝不落盘；确认后 2 条落盘——中文名 NO1需求澄清 改名 exec-30001、ascii-exec 直入；占位符行跳过且预览报告）、TestImportWithLogs归档（旧布局日志按旧名→新名归档到 data/logs/executors/exec-30001.log，内容一致；汇总"拷贝 1 条"）、TestImportJSON汇总（--json 无 --yes → 2；--yes 输出纯 JSON，renamed/imported 状态与 detail 正确）、TestImport找不到脚本（退出码 2）。注：开发中发现测试环境 HomeDir 注入遗漏导致归档误读本机真实 ~/.autowonder-executor 历史日志（未写坏任何真实文件，拷贝只读源），修复注入后全过。 |
 | 2026-10-25 | F7 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestLog -count=1`：TestLog尾部行数（tail=3 恰好 行8-10；默认 100 含全部；--lines=abc → 2）、TestLog空态与不存在（暂无日志提示、nope → 3）、TestLogJSON结构化行数组（lines 数组 + tail 字段）、TestLog跟随收到新行并干净退出（真 WS：backlog 行2 → 400ms 后写入跟随新行X 实时收到 → 主动停止返回 nil，无错误无泄漏）。 |
@@ -135,6 +136,7 @@
 |---|---|---|
 | 2026-10-24 | 创建 | 由任务计划生成 |
 | 2026-10-25 | 开工 | 子任务状态 ⬜→🔄；fakeproc 从两处 testdata 提为 internal/fakeproc 共享包（supervisor/api/cli 三处测试 TestMain 统一构建）；daemon.Client 导出 NewClientAt（测试直连）；APIError 退出码映射补充 invalid_command/invalid_name/bad_request/invalid_config→2（用法错）；cli 包新增 Deps 依赖注入（Layout/Connect/In/Out）与 RegisterCommands 装配骨架 |
+| 2026-10-25 | F10 实现 + --json schema 汇总表 | reload 自 main.go 移入 cli 包（统一 Deps 连接/输出，main.go 删除重复辅助）；version 增构建信息（文本加 os/arch + Go 版本行；--json 加 go/os/arch 字段）。**--json 汇总表**（T11 Agent 文档引用基准）：add → API 201 executor 视图直透；list/status 全部 → {"executors":[executor 视图]}；status 单个 → {"executor":{视图}}；start/stop/restart → {"executor":{视图}}；edit → {"executor":{视图}}；remove → {"removed","stopped","purged"}；log → {"name","tail","lines"}；import → {"script","results":[{name,status,detail}],"logs":[…]}（需 --yes）；doctor → [checkItem{name,ok,detail,advice,skipped}]×5；reload → {"reloaded","changed"}；version → {"version","go","os","arch"}；错误（全局）→ {"error":{"code","type","message"}}（进程 stdout，Registry 层）。executor 视图字段：name/command/autostart/workspace_root/restart{enabled,backoff}/parsed{…token 掩码}/local{state,pid,started_at,uptime_ms,restarts,backoff_delay_ms,conn,last_exit}/platform/null 占位/drift null 占位。退出码复核：矩阵测试覆盖 0/2/3/4 × 全命令（5 由 daemon 包真二进制场景④覆盖）。 |
 | 2026-10-25 | F9 实现 | 5 检查项：Node ≥ 20（node --version 解析主版本）、npx（Windows 查 npx.cmd）、provider CLI（按当前配置执行器的 provider 集合查 qoder/qodercn；无此类执行器→跳过说明；claude/codex 不需本地预装）、磁盘剩余（数据目录，阈值 1GB；Unix statfs / Windows GetDiskFreeSpaceEx，经 x/sys）、平台连通（T08 前恒跳过占位不误报）。逐项 ✅/❌/— + 中文修复建议；任一 ❌ 退出码 1；--json 输出纯数组（人读行抑制）。环境注入点 doctorEnv（测试替换 LookPath/命令执行/磁盘探测）。 |
 | 2026-10-25 | F8 实现 + 决策记录 | **缺省脚本路径**：当前目录 ./executor-manager.sh → 家目录 ~/executor-manager.sh（都无则报错并指引 --file；任务要求"与用户确认常见路径"，无人值守会话按模板默认名取此二处，记录待用户复核）。**归档源**：~/\.autowonder-executor/<旧名>.log（design §15 旧布局约定；家目录经 Deps.HomeDir 注入可测）。**--json 决策**：--json 无 --yes → 用法错误（脚本消费不接受交互）；--json 输出 {"script","results":[{name,status:imported/renamed/failed,detail}],"logs":[归档结果]}，人读输出全部抑制。预览：✓ 直入 / ~ 改名（原名→建议名 exec-<id>）/ ✗ 坏行（占位符等，跳过并报告）。 |
 | 2026-10-25 | F7 实现 | **--lines 默认 100**（决策记录）；-f 经 /ws/logs/{name}（daemon.Client 新增 FollowLogs：query token 鉴权、LogEvent 信封、onEvent 返回 false 主动停止=Ctrl-C 等价）；非流式走 GET …/log?tail=N；空日志中文空态；行原样输出（ANSI 保留）；--json 非流式输出 {"lines":[],"tail":N}。 |

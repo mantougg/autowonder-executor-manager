@@ -1,6 +1,6 @@
 # awem 开发任务索引（task-awem-dev）
 
-- **总任务状态**：🔄 进行中 —— 6/11 子任务已检查，36/71 功能点已检查
+- **总任务状态**：🔄 进行中 —— 7/11 子任务已检查，46/71 功能点已检查
 - **计划依据**：[design.md](../design/design.md)（v1 定稿，2026-10-24）+ [AGENTS.md](../../AGENTS.md)
 - **计划生成**：2026-10-24，拆解为 11 个子任务、71 个功能点
 - **执行方式**：用 `awem-dev` 技能（仓库 `.agents/skills/awem-dev/`）说"继续 awem 开发/执行 T0X/检查 T0X"；或按 [conventions.md](conventions.md) §7–8 的流程手动执行与更新状态。
@@ -28,7 +28,7 @@
 | T04 | 日志系统 | T01、T02 | 6/6 | ✅ 已检查 | [t04-logging.md](t04-logging.md) |
 | T05 | Supervisor 进程守护 | T02、T03、T04 | 7/7 | ✅ 已检查 | [t05-supervisor.md](t05-supervisor.md) |
 | T06 | daemon 与本地 API | T02、T04、T05 | 7/7 | ✅ 已检查 | [t06-daemon-api.md](t06-daemon-api.md) |
-| T07 | CLI 子命令集 | T03、T05、T06 | 9/10 | 🔄 进行中 | [t07-cli.md](t07-cli.md) |
+| T07 | CLI 子命令集 | T03、T05、T06 | 10/10 | ✅ 已检查 | [t07-cli.md](t07-cli.md) |
 | T08 | 平台状态联动（只读） | T02、T03、T06 | 0/6 | ⬜ 未开始 | [t08-platform-sync.md](t08-platform-sync.md) |
 | T09 | Web SPA | T03、T06、T08 | 0/8 | ⬜ 未开始 | [t09-web-spa.md](t09-web-spa.md) |
 | T10 | 系统服务与跨平台专项 | T06、T07 | 0/6 | ⬜ 未开始 | [t10-service-cross-platform.md](t10-service-cross-platform.md) |
@@ -113,3 +113,4 @@
 | 2026-10-25 | T07-F7 ✅ | awem log：tail/空态/--json/WS 跟随干净退出（43/71） |
 | 2026-10-25 | T07-F8 ✅ | awem import：预览/改名确认/批量导入/--with-logs 归档/--json 汇总（44/71） |
 | 2026-10-25 | T07-F9 ✅ | awem doctor：Node/npx/provider CLI/磁盘/平台占位五项体检（45/71） |
+| 2026-10-25 | T07-F10 ✅ + 子任务 ✅ | reload/version 收口、退出码矩阵与 --json schema 汇总表；T07 全部 10 功能点 ✅（46/71），已推送 |

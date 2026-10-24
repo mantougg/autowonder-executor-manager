@@ -72,7 +72,7 @@ func RegisterCommands(r *Registry, d Deps) {
 	reg(cmdLog(d))
 	reg(cmdImport(d))
 	reg(cmdDoctor(d))
-	// 后续功能点逐个注册：reload（main.go 已注册，F10 收口统一）
+	reg(cmdReload(d))
 }
 
 // printf 向 Deps.Out 输出。

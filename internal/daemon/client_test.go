@@ -7,6 +7,7 @@ package daemon
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -117,8 +118,14 @@ func TestCLI惰性拉起daemon(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, code = runCLI(t, bin, cfgDir, "reload", "--json")
-	if code != 0 || !strings.Contains(out, `"reloaded":true`) {
-		t.Fatalf("reload --json 应返回 reloaded:true，退出码 %d，输出：%s", code, out)
+	if code != 0 {
+		t.Fatalf("reload --json 失败，退出码 %d，输出：%s", code, out)
+	}
+	var rl struct {
+		Reloaded bool `json:"reloaded"`
+	}
+	if err := json.Unmarshal([]byte(out), &rl); err != nil || !rl.Reloaded {
+		t.Fatalf("reload --json 应返回 reloaded:true，输出：%s（err=%v）", out, err)
 	}
 
 	// 4) 拉起失败：坏配置（daemon 启动即拒）→ 退出码 5 + 中文指引

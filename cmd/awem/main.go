@@ -5,11 +5,10 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 
 	"awem/internal/cli"
@@ -35,7 +34,12 @@ func buildRegistry() *cli.Registry {
 		Usage:   "awem version",
 		Run: func(g cli.GlobalFlags, args []string) error {
 			if g.JSON {
-				out, err := json.Marshal(map[string]string{"version": version.Version})
+				out, err := json.Marshal(map[string]string{
+					"version": version.Version,
+					"go":      runtime.Version(),
+					"os":      runtime.GOOS,
+					"arch":    runtime.GOARCH,
+				})
 				if err != nil {
 					return err
 				}
@@ -43,6 +47,7 @@ func buildRegistry() *cli.Registry {
 				return nil
 			}
 			fmt.Println("awem " + version.Version)
+			fmt.Printf("  %s/%s（%s）\n", runtime.GOOS, runtime.GOARCH, runtime.Version())
 			return nil
 		},
 	})
@@ -69,42 +74,6 @@ func buildRegistry() *cli.Registry {
 		},
 	})
 
-	// reload：手动触发配置重载（惰性拉起 daemon；正常由文件监视自动完成）。
-	r.Register(&cli.Command{
-		Name:    "reload",
-		Summary: "手动触发配置重载（正常由文件监视自动完成，此为兜底入口）",
-		Usage:   "awem reload",
-		Run: func(g cli.GlobalFlags, args []string) error {
-			if len(args) > 0 {
-				return exitcode.Usagef("awem reload 不接受参数")
-			}
-			p, err := config.DefaultLayout()
-			if err != nil {
-				return exitcode.Wrap(exitcode.General, err)
-			}
-			ctx := context.Background()
-			cl, err := daemon.Connect(ctx, daemon.ClientOptions{Paths: p})
-			if err != nil {
-				return err // Connect 已包装为退出码 5 语义
-			}
-			data, err := cl.Do(ctx, http.MethodPost, "/api/reload", nil)
-			if err != nil {
-				return wrapAPIErr(err)
-			}
-			if g.JSON {
-				fmt.Println(string(data))
-				return nil
-			}
-			var out struct {
-				Reloaded bool `json:"reloaded"`
-				Changed  bool `json:"changed"`
-			}
-			_ = json.Unmarshal(data, &out)
-			fmt.Println("配置重载完成（变更：" + boolCN(out.Changed) + "）")
-			return nil
-		},
-	})
-
 	placeholders := []cli.Command{
 		{Name: "list", Summary: "列出全部执行器（本地+平台状态）", Usage: "awem list"},
 		{Name: "status", Summary: "查看运行态、pid、uptime、重启次数等", Usage: "awem status [名称]"},
@@ -126,21 +95,4 @@ func buildRegistry() *cli.Registry {
 	cli.RegisterCommands(r, cli.Deps{})
 
 	return r
-}
-
-// wrapAPIErr 把 daemon.APIError 转为带退出码的 CLI 错误。
-func wrapAPIErr(err error) error {
-	var ae *daemon.APIError
-	if errors.As(err, &ae) {
-		return exitcode.Wrap(ae.ExitCode(), err)
-	}
-	return err
-}
-
-// boolCN 布尔值中文展示。
-func boolCN(b bool) string {
-	if b {
-		return "是"
-	}
-	return "否"
 }
