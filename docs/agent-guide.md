@@ -68,7 +68,8 @@ ONLINE（心跳超时判定在平台侧）。
   parsed:{runtime_version, ws_url, token(掩码), executor_id, provider, model,
   reasoning_effort, context_window, memory_mode, max_tasks, token_aware, debug,
   passthrough[]}, local:{state,pid,started_at,uptime_ms,restarts,backoff_delay_ms,
-  conn,last_exit}, platform:{status,last_heartbeat}|null, drift:{fields:[{field,
+  conn,last_exit}, platform:{status,last_heartbeat,name,agent_name,project}|null（联动后 name=平台侧
+  执行器中文名、agent_name=所属数字工人、project=所属项目；未联动为 null）， drift:{fields:[{field,
   local,remote}],message}|null}`
 - 其他：`status`（daemon）= `{version,pid,port,started_at,uptime_ms,platform:{configured,connected}}`；
   `remove` = `{removed,stopped,purged}`；`log` = `{name,tail,lines[]}`；

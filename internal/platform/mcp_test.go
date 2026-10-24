@@ -29,7 +29,9 @@ func newFakeMCP(t *testing.T) *fakeMCP {
 		tools: map[string]func(map[string]any) (string, error){},
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/mcp", func(w http.ResponseWriter, r *http.Request) {
+	// 两条路径同处理器："/mcp"（Client 直连测试用 f.url()）与真实平台
+	// 风格的令牌路径（NewService 端点推导用 BaseURL 直连）
+	handler := func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer tok-1" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -90,7 +92,9 @@ func newFakeMCP(t *testing.T) *fakeMCP {
 				"error": map[string]any{"code": -32601, "message": "method not found"},
 			})
 		}
-	})
+	}
+	mux.HandleFunc("/mcp", handler)
+	mux.HandleFunc("/api/mcp/tok-1/", handler)
 	f.server = httptest.NewServer(mux)
 	t.Cleanup(f.server.Close)
 	return f
@@ -113,13 +117,13 @@ func (f *fakeMCP) callCount(tool string) int {
 func TestMCP正常链路与会话头(t *testing.T) {
 	f := newFakeMCP(t)
 	f.tools["autowonder.list_projects"] = func(map[string]any) (string, error) {
-		return `[{"workspaceId":10000,"name":"git-workspace"},{"workspaceId":10001,"name":"home-test"}]`, nil
+		return `{"items":[{"id":10000,"name":"git-workspace"},{"id":10001,"name":"home-test"}]}`, nil
 	}
 	f.tools["autowonder.list_executors"] = func(args map[string]any) (string, error) {
 		if args["workspaceId"].(float64) != 10001 {
-			return `[]`, nil
+			return `{"items":[]}`, nil
 		}
-		return `[{"id":10086,"name":"NO1","status":"ONLINE","lastHeartbeatAt":"2026-10-25T02:00:00+08:00"}]`, nil
+		return `{"items":[{"id":10086,"name":"NO1快速全栈开发","agentId":10007,"agentName":"快速全栈开发","status":"ONLINE","lastHeartbeat":1792872206969}]}`, nil
 	}
 	c := NewClient(f.url(), "tok-1")
 
@@ -137,7 +141,10 @@ func TestMCP正常链路与会话头(t *testing.T) {
 	if len(execs) != 1 || execs[0].ID != 10086 || execs[0].Status != "ONLINE" {
 		t.Fatalf("执行器解析：%+v", execs)
 	}
-	if execs[0].LastHeartbeat.IsZero() {
+	if execs[0].Name != "NO1快速全栈开发" || execs[0].AgentName != "快速全栈开发" || execs[0].AgentID != 10007 {
+		t.Fatalf("归属展示字段解析：%+v", execs[0])
+	}
+	if execs[0].Heartbeat().IsZero() {
 		t.Fatal("心跳时间未解析")
 	}
 	// 工具名点号前缀（附录 A）断言：假服务只认识点号前缀工具
@@ -190,7 +197,7 @@ func (e staticErr) Error() string { return string(e) }
 func TestMCP超时(t *testing.T) {
 	f := newFakeMCP(t)
 	f.slow = true
-	f.tools["autowonder.list_projects"] = func(map[string]any) (string, error) { return "[]", nil }
+	f.tools["autowonder.list_projects"] = func(map[string]any) (string, error) { return `{"items":[]}`, nil }
 	c := NewClient(f.url(), "tok-1")
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
@@ -203,7 +210,10 @@ func TestMCP_SSE响应形态(t *testing.T) {
 	// Streamable HTTP 可能回 SSE；客户端应提取 data: 行 JSON
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		_, _ = w.Write([]byte("event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"[]\"}]}}\n\n"))
+		// 原始字符串里的 \" 即 JSON 转义，inner 是 text 字段的内嵌 JSON
+		inner := `{\"items\":[]}`
+		data := `{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"` + inner + `"}]}}`
+		_, _ = w.Write([]byte("event: message\ndata: " + data + "\n\n"))
 	}))
 	defer srv.Close()
 	c := NewClient(srv.URL, "tok-1")

@@ -8,8 +8,9 @@
 //  2. 底层 call 私有，且带工具名白名单校验——白名单外的工具名（一切
 //     平台写操作）在客户端层直接拒绝，不发出任何 HTTP 请求。
 //
-// MCP 端点推导（待真实环境验证，记录于任务文档）：config.base_url + "/mcp"，
-// 鉴权 Authorization: Bearer <mcp_token>。
+// MCP 端点推导（2026-10-25 真实平台实测校准）：config.base_url +
+// "/api/mcp/" + mcp_token + "/"——个人令牌编在 URL 路径中（推导在
+// syncer.go NewService；Bearer 头平台兼容保留）。
 package platform
 
 import (
@@ -50,30 +51,42 @@ func NewClient(url, token string) *Client {
 	}
 }
 
-// Project 是 list_projects 的一条空间信息。
+// Project 是 list_projects 的一条空间信息（真实平台字段：id/name，
+// 外层 {"items":[…]} 包裹——2026-10-25 实测校准）。
 type Project struct {
-	ID   int64  `json:"workspaceId"`
+	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
-// ExecutorRemote 是 list_executors 的一条平台侧执行器。
-// 字段名按平台 API 常见形态假设（status/lastHeartbeatAt），
-// 待真实环境验证（记录于任务文档）。
+// ExecutorRemote 是 list_executors 的一条平台侧执行器（字段名按真实
+// 平台 2026-10-25 实测校准：name=执行器名（通常为接入时的中文名）、
+// agentId/agentName=所属数字工人、lastHeartbeat=Unix 毫秒）。
 type ExecutorRemote struct {
-	ID            int64     `json:"id"`
-	Name          string    `json:"name"`
-	Status        string    `json:"status"` // ONLINE / BUSY / OFFLINE
-	LastHeartbeat time.Time `json:"lastHeartbeatAt"`
+	ID             int64    `json:"id"`
+	Name           string   `json:"name"`
+	AgentID        int64    `json:"agentId"`
+	AgentName      string   `json:"agentName"`
+	Status         string   `json:"status"` // ONLINE / BUSY / OFFLINE
+	LastHeartbeatMS int64   `json:"lastHeartbeat"` // Unix 毫秒
+	SquadNames     []string `json:"squadNames"`
+}
+
+// Heartbeat 把毫秒时间戳转 time.Time（0/缺失返回零值）。
+func (e ExecutorRemote) Heartbeat() time.Time {
+	if e.LastHeartbeatMS <= 0 {
+		return time.Time{}
+	}
+	return time.UnixMilli(e.LastHeartbeatMS)
 }
 
 // LaunchConfig 是 get_executor_launch_config 的平台侧启动配置
-// （字段名 camelCase 按平台 MCP 工具返回假设，待真实环境验证）。
+// （2026-10-25 实测：contextWindow 为字符串，如 "1000000"）。
 type LaunchConfig struct {
 	Model                   string `json:"model"`
 	ReasoningEffort         string `json:"reasoningEffort"`
-	ContextWindow           int64  `json:"contextWindow"`
+	ContextWindow           string `json:"contextWindow"`
 	MemoryMode              string `json:"memoryMode"`
-	MaxConcurrentDispatches int    `json:"maxConcurrentDispatches"`
+	MaxConcurrentDispatches int64  `json:"maxConcurrentDispatches"`
 }
 
 // ListProjects 列出可见空间（READ 及以上权限，由平台侧按令牌过滤）。
@@ -82,14 +95,16 @@ func (c *Client) ListProjects(ctx context.Context) ([]Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	var out []Project
+	var out struct {
+		Items []Project `json:"items"`
+	}
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return nil, fmt.Errorf("解析 list_projects 响应失败：%w", err)
 	}
-	return out, nil
+	return out.Items, nil
 }
 
-// ListExecutors 列出某空间的执行器（含实时状态）。
+// ListExecutors 列出某空间的执行器（含实时状态与所属数字工人）。
 func (c *Client) ListExecutors(ctx context.Context, workspaceID int64) ([]ExecutorRemote, error) {
 	raw, err := c.call(ctx, "autowonder.list_executors", map[string]any{
 		"workspaceId": workspaceID,
@@ -97,11 +112,13 @@ func (c *Client) ListExecutors(ctx context.Context, workspaceID int64) ([]Execut
 	if err != nil {
 		return nil, err
 	}
-	var out []ExecutorRemote
+	var out struct {
+		Items []ExecutorRemote `json:"items"`
+	}
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return nil, fmt.Errorf("解析 list_executors 响应失败：%w", err)
 	}
-	return out, nil
+	return out.Items, nil
 }
 
 // GetExecutorLaunchConfig 查平台侧启动配置（漂移检测用）。

@@ -92,6 +92,9 @@ export interface ExecutorParsed {
 export interface PlatformInfo {
   status: string
   last_heartbeat?: string
+  name?: string // 平台侧执行器名（接入时的中文名）
+  agent_name?: string // 所属数字工人中文名
+  project?: string // 所属项目（工作空间）名
 }
 
 export interface DriftInfo {

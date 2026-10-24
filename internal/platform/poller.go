@@ -111,13 +111,33 @@ func (s *Service) Refresh(ctx context.Context) error {
 		}
 	}
 
+	// 本地 id -> 归属空间与项目名快照（组装展示字段用）
+	s.mu.RLock()
+	wsOfID := map[string]int64{}
+	for id := range locals {
+		if ws, ok := s.owner[id]; ok {
+			wsOfID[id] = ws
+		}
+	}
+	projNames := map[int64]string{}
+	for ws, name := range s.projects {
+		projNames[ws] = name
+	}
+	s.mu.RUnlock()
+
 	s.mu.Lock()
 	s.failCount = 0 // 成功清零（与入口无关保持一致）
 	ok := true
 	s.lastOK = &ok
 	for id := range locals {
 		if e, ok := remote[id]; ok {
-			s.status[id] = Status{State: e.Status, LastHeartbeat: e.LastHeartbeat}
+			s.status[id] = Status{
+				State:         e.Status,
+				LastHeartbeat: e.Heartbeat(),
+				Name:          e.Name,
+				AgentName:     e.AgentName,
+				Project:       projNames[wsOfID[id]],
+			}
 		} else {
 			// 有归属但本轮查不到（平台刚删除/迁移）或无归属 → unowned，
 			// 下轮发现按需重建归属

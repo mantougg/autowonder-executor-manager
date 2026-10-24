@@ -21,7 +21,7 @@ var driftPairs = []struct {
 	{"model", func(l LocalExecutor) string { return l.Model }, func(c LaunchConfig) string { return c.Model }},
 	{"reasoning-effort", func(l LocalExecutor) string { return l.ReasoningEffort }, func(c LaunchConfig) string { return c.ReasoningEffort }},
 	{"context-window", func(l LocalExecutor) string { return l.ContextWindow },
-		func(c LaunchConfig) string { return fmt.Sprint(c.ContextWindow) }},
+		func(c LaunchConfig) string { return c.ContextWindow }},
 	{"memory-mode", func(l LocalExecutor) string { return l.MemoryMode }, func(c LaunchConfig) string { return c.MemoryMode }},
 	{"max-tasks", func(l LocalExecutor) string { return l.MaxTasks },
 		func(c LaunchConfig) string {

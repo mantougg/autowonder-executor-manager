@@ -102,6 +102,12 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
     <div className="awem-page">
       <div className="awem-page-header">
         <h1 className="awem-page-title mono">{view.name}</h1>
+        {view.platform?.name ? (
+          <span className="awem-hint" style={{ fontSize: 15 }}>
+            {view.platform.name}
+            {view.platform.agent_name && view.platform.agent_name !== view.platform.name ? `（${view.platform.agent_name}）` : ''}
+          </span>
+        ) : null}
       </div>
 
       {/* 状态摘要条：双状态并列 + pid/uptime/重启 */}
@@ -112,6 +118,7 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
         ) : (
           <span className="awem-hint">{t.status.platform}：—</span>
         )}
+        {view.platform?.project ? <span className="awem-hint">所属项目 {view.platform.project}</span> : null}
         <span className="awem-hint">pid {view.local.pid || '—'}</span>
         <span className="awem-hint">uptime {fmtUptime(view.local.uptime_ms)}</span>
         <span className="awem-hint">重启 {view.local.restarts} 次</span>

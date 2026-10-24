@@ -14,7 +14,7 @@ func TestDrift字段不一致与一致(t *testing.T) {
 	// 平台配置：model 与本地不同、reasoning-effort 相同、context-window 不同
 	f.mu.Lock()
 	f.tools["autowonder.get_executor_launch_config"] = func(args map[string]any) (string, error) {
-		return `{"model":"dfmodel","reasoningEffort":"medium","contextWindow":400000,"memoryMode":"provider-local","maxConcurrentDispatches":5}`, nil
+		return `{"model":"dfmodel","reasoningEffort":"medium","contextWindow":"400000","memoryMode":"provider-local","maxConcurrentDispatches":5}`, nil
 	}
 	f.mu.Unlock()
 	s := NewService(Options{
@@ -54,7 +54,7 @@ func TestDrift字段不一致与一致(t *testing.T) {
 	// 全部一致 → 无 drift
 	f.mu.Lock()
 	f.tools["autowonder.get_executor_launch_config"] = func(args map[string]any) (string, error) {
-		return `{"model":"qfmodel","reasoningEffort":"medium","contextWindow":1000000}`, nil
+		return `{"model":"qfmodel","reasoningEffort":"medium","contextWindow":"1000000"}`, nil
 	}
 	f.mu.Unlock()
 	if err := s.Refresh(context.Background()); err != nil {

@@ -164,11 +164,15 @@ backoff    = "exponential"        # 1s 起步，×2，上限 5m；稳定运行 1
 
 1. 用户配置一次个人 MCP 令牌 + 平台地址（`[platform]` 段，0600 明文落盘）。
 2. **自动发现**：`list_projects`（READ 及以上空间）→ 逐空间 `list_executors(workspaceId)` → 按本地解析出的
-   `executor-id` 匹配归属，缓存 `executor_id -> workspace_id` 映射（执行器删除/迁移时重新发现）。
+   `executor-id` 匹配归属，缓存 `executor_id -> workspace_id` + `workspace_id -> 项目名` 映射
+   （执行器删除/迁移时重新发现）。
 3. **轮询**：默认 60s（可配）拉取各执行器实时状态 ONLINE/BUSY/OFFLINE + 心跳时间。
-4. **漂移检测**：对比本地解析字段（model/reasoning-effort/context-window/memory-mode/max-tasks）与平台
+4. **归属展示**（2026-10-25 起）：`list_executors` 每条带执行器名（接入时的中文名）、
+   `agentName`（所属数字工人中文名）；结合项目名映射，总览表新增**所属项目**列、
+   名称列中文名主显（标识名小字副显），详情页标题旁与状态条同步展示。未联动时列显示 `—`、名称回退标识名。
+5. **漂移检测**：对比本地解析字段（model/reasoning-effort/context-window/memory-mode/max-tasks）与平台
    `get_executor_launch_config`；不一致 → UI/CLI 标黄提示"需 restart 或平台配置已变"。权限不足则跳过该项，不报错。
-5. 任何情况下**不发起平台写操作**。
+6. 任何情况下**不发起平台写操作**。
 
 ## 8. CLI 设计
 
@@ -288,6 +292,10 @@ awem version
   `executor-restart-controls.md`（平台可下发远程重启）、`executor-model-upgrade-policy.md`（按任务数自动升模型）。
 - MCP 通道（awem 状态联动用）：`autowonder.list_projects` / `autowonder.list_executors(workspaceId)` /
   `autowonder.get_executor_launch_config`，Streamable HTTP，`POST <mcp-url>` JSON-RPC，工具名为**点号**前缀。
+  端点推导与响应形态（2026-10-25 真实平台实测）：端点 `<base_url>/api/mcp/<mcp_token>/`（令牌在 URL 路径，
+  Bearer 头平台兼容可保留）；list_projects/list_executors 外层 `{"items":[…]}` 包裹；list_projects 条目键为
+  `id`/`name`；list_executors 条目含 `id`/`name`（执行器中文名）/`agentId`/`agentName`/`status`/
+  `lastHeartbeat`（Unix 毫秒）；launch_config 的 `contextWindow` 为字符串（如 `"1000000"`）。
 
 ## 附录 B：现状资料索引
 

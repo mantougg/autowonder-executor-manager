@@ -31,7 +31,7 @@ func newFakePlatform(t *testing.T) *fakePlatform {
 	t.Helper()
 	fp := &fakePlatform{status: "ONLINE", model: "dfmodel"} // 与本地 qfmodel 不同 → 漂移
 	mux := http.NewServeMux()
-	mux.HandleFunc("/mcp", func(w http.ResponseWriter, r *http.Request) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Method string `json:"method"`
 			Params struct {
@@ -52,15 +52,17 @@ func newFakePlatform(t *testing.T) *fakePlatform {
 		w.Header().Set("Content-Type", "application/json")
 		switch req.Params.Name {
 		case "autowonder.list_projects":
-			_, _ = w.Write([]byte(text(`[{"workspaceId":10000,"name":"ws"}]`)))
+			_, _ = w.Write([]byte(text(`{"items":[{"id":10000,"name":"ws"}]}`)))
 		case "autowonder.list_executors":
-			_, _ = w.Write([]byte(text(`[{"id":10086,"name":"e","status":"` + st + `"}]`)))
+			_, _ = w.Write([]byte(text(`{"items":[{"id":10086,"name":"NO1快速全栈开发","agentId":10007,"agentName":"快速全栈开发","status":"` + st + `","lastHeartbeat":1792872206969}]}`)))
 		case "autowonder.get_executor_launch_config":
-			_, _ = w.Write([]byte(text(`{"model":"` + model + `","reasoningEffort":"medium","contextWindow":1000000}`)))
+			_, _ = w.Write([]byte(text(`{"model":"` + model + `","reasoningEffort":"medium","contextWindow":"1000000"}`)))
 		default:
 			_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
 		}
-	})
+	}
+	mux.HandleFunc("/mcp", handler)
+	mux.HandleFunc("/api/mcp/tok-1/", handler) // 真实平台令牌路径风格（NewService 端点推导）
 	fp.srv = httptest.NewServer(mux)
 	t.Cleanup(fp.srv.Close)
 	return fp

@@ -61,6 +61,9 @@ type localView struct {
 type platformView struct {
 	Status        string `json:"status"` // ONLINE/BUSY/OFFLINE/unreachable/unowned
 	LastHeartbeat string `json:"last_heartbeat,omitempty"`
+	Name          string `json:"name,omitempty"`       // 平台侧执行器名（接入中文名）
+	AgentName     string `json:"agent_name,omitempty"` // 所属数字工人中文名
+	Project       string `json:"project,omitempty"`    // 所属项目（工作空间）名
 }
 
 // driftView 是漂移信息（null=无漂移或未联动；文案按 design #9）。
@@ -118,8 +121,14 @@ func (s *Server) buildExecutorView(e config.Executor) executorView {
 	}
 	// 平台状态与漂移（联动启用后注入；未联动/未命中为 null 占位）
 	if v.Parsed != nil {
-		if ps, ok := s.opts.Plat.Lookup(v.Parsed.ExecutorID); ok {
-			v.Platform = &platformView{Status: ps.State, LastHeartbeat: formatTime(ps.LastHeartbeat)}
+	if ps, ok := s.opts.Plat.Lookup(v.Parsed.ExecutorID); ok {
+		v.Platform = &platformView{
+			Status:        ps.State,
+			LastHeartbeat: formatTime(ps.LastHeartbeat),
+			Name:          ps.Name,
+			AgentName:     ps.AgentName,
+			Project:       ps.Project,
+		}
 			if len(ps.Drift) > 0 {
 				v.Drift = driftView{
 					Fields:  ps.Drift,

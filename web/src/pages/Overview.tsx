@@ -100,6 +100,7 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
             <thead>
               <tr>
                 <th>名称</th>
+                <th>所属项目</th>
                 <th>{t.status.local}</th>
                 <th>连接</th>
                 <th>{t.status.platform}（平台轮询）</th>
@@ -115,17 +116,22 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                   <td>
                     <a
                       href={`/executors/${encodeURIComponent(e.name)}`}
-                      className="mono"
+                      className={e.platform?.name ? '' : 'mono'}
+                      title={e.platform?.agent_name ? `数字工人：${e.platform.agent_name}` : undefined}
                       onClick={(ev) => { ev.preventDefault(); navigate(`/executors/${encodeURIComponent(e.name)}`) }}
                     >
-                      {e.name}
+                      {e.platform?.name || e.name}
                     </a>
+                    {e.platform?.name ? (
+                      <div className="awem-hint mono" style={{ fontSize: 12 }}>{e.name}</div>
+                    ) : null}
                     {e.drift && e.drift.fields.length > 0 ? (
                       <span className="awem-pill warn" style={{ marginLeft: 8 }} title={e.drift.message}>
                         {t.status.drift} {e.drift.fields.length}
                       </span>
                     ) : null}
                   </td>
+                  <td className="awem-hint">{e.platform?.project || '—'}</td>
                   <td><StatusDot kind={localStateKind(e.local.state)} text={localStateText[e.local.state] ?? e.local.state} /></td>
                   <td className="awem-hint">{e.local.conn === 'connected' ? t.status.connected : e.local.conn === 'reconnecting' ? t.status.reconnecting : e.local.conn}</td>
                   <td>

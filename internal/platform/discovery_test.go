@@ -34,17 +34,17 @@ func seedTwoWorkspaces(f *fakeMCP) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.tools["autowonder.list_projects"] = func(map[string]any) (string, error) {
-		return `[{"workspaceId":10000,"name":"ws-a"},{"workspaceId":10001,"name":"ws-b"}]`, nil
+		return `{"items":[{"id":10000,"name":"ws-a"},{"id":10001,"name":"ws-b"}]}`, nil
 	}
 	f.tools["autowonder.list_executors"] = func(args map[string]any) (string, error) {
 		ws := int64(args["workspaceId"].(float64))
 		switch ws {
 		case 10000:
-			return `[{"id":10086,"name":"e1","status":"ONLINE"},{"id":10087,"name":"e2","status":"OFFLINE"}]`, nil
+			return `{"items":[{"id":10086,"name":"NO1全栈开发","agentId":10002,"agentName":"全栈开发","status":"ONLINE","lastHeartbeat":1792872206969},{"id":10087,"name":"e2","agentId":10003,"agentName":"代码评审工程师","status":"OFFLINE"}]}`, nil
 		case 10001:
-			return `[{"id":20001,"name":"e3","status":"BUSY"}]`, nil
+			return `{"items":[{"id":20001,"name":"e3","agentId":10004,"agentName":"测试与部署工程师","status":"BUSY"}]}`, nil
 		}
-		return `[]`, nil
+		return `{"items":[]}`, nil
 	}
 }
 
@@ -71,6 +71,9 @@ func Test发现多空间映射正确(t *testing.T) {
 	if json.Unmarshal(data, &c) != nil || c.Owner["10086"] != 10000 {
 		t.Fatalf("缓存内容：%s", data)
 	}
+	if c.Projects[10000] != "ws-a" || c.Projects[10001] != "ws-b" {
+		t.Fatalf("缓存应含项目名映射：%+v", c.Projects)
+	}
 }
 
 func Test发现权限不足空间跳过(t *testing.T) {
@@ -78,14 +81,14 @@ func Test发现权限不足空间跳过(t *testing.T) {
 	f := e.f
 	f.mu.Lock()
 	f.tools["autowonder.list_projects"] = func(map[string]any) (string, error) {
-		return `[{"workspaceId":10000,"name":"ws-a"},{"workspaceId":10001,"name":"ws-b"}]`, nil
+		return `{"items":[{"id":10000,"name":"ws-a"},{"id":10001,"name":"ws-b"}]}`, nil
 	}
 	f.tools["autowonder.list_executors"] = func(args map[string]any) (string, error) {
 		ws := int64(args["workspaceId"].(float64))
 		if ws == 10000 {
 			return "", staticErr("permission denied")
 		}
-		return `[{"id":20001,"name":"e3","status":"ONLINE"}]`, nil
+		return `{"items":[{"id":20001,"name":"e3","agentId":10004,"agentName":"测试与部署工程师","status":"ONLINE"}]}`, nil
 	}
 	f.mu.Unlock()
 
@@ -144,9 +147,9 @@ func Test平台侧删除后重发现(t *testing.T) {
 	e.f.tools["autowonder.list_executors"] = func(args map[string]any) (string, error) {
 		ws := int64(args["workspaceId"].(float64))
 		if ws == 10000 {
-			return `[{"id":10087,"name":"e2","status":"OFFLINE"}]`, nil
+			return `{"items":[{"id":10087,"name":"e2","agentId":10003,"agentName":"代码评审工程师","status":"OFFLINE"}]}`, nil
 		}
-		return `[]`, nil
+		return `{"items":[]}`, nil
 	}
 	e.f.mu.Unlock()
 	if err := e.s.discover(context.Background()); err != nil {

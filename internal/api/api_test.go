@@ -60,6 +60,7 @@ type testEnv struct {
 	p   config.Paths
 	mgr *logs.Manager
 	sup *supervisor.Supervisor
+	w   *config.Watcher // 复用装配（换 Plat 重建 Server 的测试用）
 }
 
 // newEnvWithExecs 构造环境：预置 execs 到 config.toml 并发布。
@@ -93,6 +94,7 @@ func newEnvWithExecs(t *testing.T, execs ...config.Executor) *testEnv {
 		Paths: env.p, Token: "test-token", Logs: env.mgr, Sup: env.sup,
 		Watcher: w, Plat: platform.Noop{}, Port: 18765, Version: "test-1.2.3",
 	})
+	env.w = w
 	env.srv = httptest.NewServer(env.api.Handler())
 	t.Cleanup(env.srv.Close)
 	return env
@@ -253,6 +255,40 @@ func TestAPIpassthrough空数组契约(t *testing.T) {
 			t.Fatalf("%s：应含 \"passthrough\":[]，body=%s", path, body)
 		}
 	}
+}
+
+// TestAPI平台归属展示字段：platform 视图带 name/agent_name/project
+// （连平台后总览/详情的中文名与所属项目数据契约）。
+func TestAPI平台归属展示字段(t *testing.T) {
+	e := newEnvWithExecs(t, config.Executor{
+		Name: "e1", Command: validCommand,
+		Restart: config.RestartPolicy{Enabled: config.BoolPtr(true), Backoff: "exponential"},
+	})
+	e.api = New(Options{
+		Paths: e.p, Token: "test-token", Logs: e.mgr, Sup: e.sup,
+		Watcher: e.w,
+		Plat: fakeSyncer{"10086": platform.Status{
+			State: "ONLINE", Name: "NO1快速全栈开发", AgentName: "快速全栈开发", Project: "git-workspace",
+		}}, Port: 18765, Version: "test-1.2.3",
+	})
+	e.srv = httptest.NewServer(e.api.Handler())
+	t.Cleanup(e.srv.Close)
+	code, body := e.do(t, http.MethodGet, "/api/executors/e1", "")
+	if code != http.StatusOK {
+		t.Fatalf("应 200，实际 %d %s", code, body)
+	}
+	p := jsonMap(t, body)["executor"].(map[string]any)["platform"].(map[string]any)
+	if p["name"] != "NO1快速全栈开发" || p["agent_name"] != "快速全栈开发" || p["project"] != "git-workspace" {
+		t.Fatalf("platform 归属展示字段：%v", p)
+	}
+}
+
+// fakeSyncer 是注入固定状态的平台联动假实现。
+type fakeSyncer map[string]platform.Status
+
+func (f fakeSyncer) Lookup(id string) (platform.Status, bool) {
+	st, ok := f[id]
+	return st, ok
 }
 
 // --- F3 验收：add 全链路 + 错误路径 ---

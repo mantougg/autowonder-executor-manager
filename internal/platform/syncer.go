@@ -7,6 +7,7 @@ package platform
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -20,13 +21,18 @@ type DriftField struct {
 	Remote string `json:"remote"` // 平台值
 }
 
-// Status 是单个执行器的平台侧联动快照（状态 + 漂移）。
+// Status 是单个执行器的平台侧联动快照（状态 + 漂移 + 归属展示信息）。
 // State 取值：ONLINE / BUSY / OFFLINE / unreachable（平台不可达）/
 // unowned（本地 id 平台不存在，不算错误）。
+// Name/AgentName/Project 来自平台 list_executors（执行器中文名、所属
+// 数字工人中文名、所属项目名），供 Web/CLI 展示（2026-10-25 起）。
 type Status struct {
 	State         string
 	LastHeartbeat time.Time
 	Drift         []DriftField
+	Name          string // 平台侧执行器名（接入时的中文名，如 NO1快速全栈开发）
+	AgentName     string // 所属数字工人中文名（如 快速全栈开发）
+	Project       string // 所属项目（工作空间）名
 }
 
 // Syncer 接口是 api 层消费面（T06 预留；Noop 为禁用实现）。
@@ -68,10 +74,11 @@ type Service struct {
 	localIDs  func() []LocalExecutor
 	onEvent   func(typ, executorID, detail string)
 
-	mu     sync.RWMutex
-	owner  map[string]int64          // executor_id(字符串) -> workspace_id
-	remote map[string]ExecutorRemote // executor_id -> 最近平台侧信息
-	status map[string]Status         // executor_id -> 联动快照（含 unreachable/unowned）
+	mu       sync.RWMutex
+	owner    map[string]int64          // executor_id(字符串) -> workspace_id
+	projects map[int64]string          // workspace_id -> 项目名（list_projects）
+	remote   map[string]ExecutorRemote // executor_id -> 最近平台侧信息
+	status   map[string]Status         // executor_id -> 联动快照（含 unreachable/unowned）
 
 	// 轮询状态（poller.go）
 	failCount       int           // 连续失败次数（成功清零）
@@ -86,6 +93,7 @@ func NewService(o Options) *Service {
 		localIDs:  o.LocalIDs,
 		onEvent:   o.OnEvent,
 		owner:     map[string]int64{},
+		projects:  map[int64]string{},
 		remote:    map[string]ExecutorRemote{},
 		status:    map[string]Status{},
 	}
@@ -93,7 +101,10 @@ func NewService(o Options) *Service {
 		return s
 	}
 	s.cfg = o.Config
-	s.client = NewClient(o.Config.BaseURL+"/mcp", o.Config.Token)
+	// 端点推导（真实平台实测）：令牌编在路径中，形如
+	// <base_url>/api/mcp/<mcp_token>/；Bearer 头平台兼容，由客户端附带。
+	base := strings.TrimRight(o.Config.BaseURL, "/")
+	s.client = NewClient(base+"/api/mcp/"+o.Config.Token+"/", o.Config.Token)
 	s.loadCache()
 	return s
 }

@@ -14,10 +14,12 @@ import (
 
 // cacheFile 是落盘缓存的结构。
 type cacheFile struct {
-	Owner map[string]int64 `json:"owner"` // executor_id -> workspace_id
+	Owner    map[string]int64 `json:"owner"`    // executor_id -> workspace_id
+	Projects map[int64]string `json:"projects"` // workspace_id -> 项目名
 }
 
-// loadCache 读缓存（损坏/不存在自愈为空）。
+// loadCache 读缓存（损坏/不存在自愈为空；旧版无 projects 键时为空，
+// ensureDiscovery 判定未覆盖后自动全量重建）。
 func (s *Service) loadCache() {
 	if s.cachePath == "" {
 		return
@@ -29,6 +31,9 @@ func (s *Service) loadCache() {
 	var c cacheFile
 	if json.Unmarshal(data, &c) == nil && c.Owner != nil {
 		s.owner = c.Owner
+		if c.Projects != nil {
+			s.projects = c.Projects
+		}
 	}
 }
 
@@ -37,7 +42,7 @@ func (s *Service) saveCache() {
 	if s.cachePath == "" || len(s.owner) == 0 {
 		return
 	}
-	data, err := json.Marshal(cacheFile{Owner: s.owner})
+	data, err := json.Marshal(cacheFile{Owner: s.owner, Projects: s.projects})
 	if err != nil {
 		return
 	}
@@ -45,8 +50,9 @@ func (s *Service) saveCache() {
 	_ = os.WriteFile(s.cachePath, data, 0o600)
 }
 
-// discover 全量发现归属：可见空间 × 空间执行器 → 重建 owner/remote 快照。
-// 权限不足的空间跳过（design §7.4）；平台不可达返回错误（调用方决定重试）。
+// discover 全量发现归属：可见空间 × 空间执行器 → 重建 owner/remote 快照
+// 与项目名映射。权限不足的空间跳过（design §7.4）；平台不可达返回错误
+// （调用方决定重试）。
 func (s *Service) discover(ctx context.Context) error {
 	projects, err := s.client.ListProjects(ctx)
 	if err != nil {
@@ -54,7 +60,9 @@ func (s *Service) discover(ctx context.Context) error {
 	}
 	owner := map[string]int64{}
 	remote := map[string]ExecutorRemote{}
+	projNames := map[int64]string{}
 	for _, p := range projects {
+		projNames[p.ID] = p.Name
 		execs, err := s.client.ListExecutors(ctx, p.ID)
 		if err != nil {
 			if IsPermissionErr(err) {
@@ -70,6 +78,7 @@ func (s *Service) discover(ctx context.Context) error {
 	}
 	s.mu.Lock()
 	s.owner = owner
+	s.projects = projNames
 	s.remote = remote
 	s.mu.Unlock()
 	s.saveCache()
@@ -87,7 +96,7 @@ func (s *Service) ensureDiscovery(ctx context.Context) error {
 		return nil
 	}
 	s.mu.RLock()
-	covered := len(s.owner) > 0
+	covered := len(s.owner) > 0 && len(s.projects) > 0 // 项目名缺失（旧缓存）也触发重建
 	for _, l := range locals {
 		if _, ok := s.owner[l.ExecutorID]; !ok {
 			covered = false
