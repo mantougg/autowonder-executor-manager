@@ -29,8 +29,8 @@
 
 ### F2 · 守护状态机（崩溃自动拉起）
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：每执行器一个 goroutine 监管：子进程退出且**非人为停止** → 指数退避自动拉起（1s → ×2 → 上限 5m）；**稳定运行 10m 后计数重置**；`restart.enabled=false` 则退出即退出不拉起。状态机枚举（如 Starting/Running/Backoff/Stopping/Stopped/Failed）自定并记录；状态迁移全部发事件（T04 F4）。可测试性：时钟与退避参数可注入。
 - **验收要点**：
   - 假子进程冒烟：启动 → 杀掉 → 自动拉起（退避间隔按注入的快时钟缩短验证）；
@@ -93,6 +93,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F2 | ✅ | `go test ./internal/supervisor/ -run 'TestCrash|TestStable|TestManual' -v` 4 用例通过且 `-count=5` 稳定：崩溃自动拉起（假进程 exit 7，事件含退出码；第 1/2 次退避 20ms/40ms ×2 序列断言）；稳定运行 150ms（注入 StableReset，快进等价）后崩溃 → 退避从 20ms 重新起步且事件含"退避计数已重置"；restart.enabled=false 崩溃后 Failed 不拉起（150ms 观察窗，restarts=0）；人为 stop 不拉起 + 重复 stop 幂等 |
 | 2026-10-25 | F1 | ✅ | `go test ./internal/supervisor/ -v` 6 用例通过：spawn 成功且 pid 记录并存活（TestStartExecutorSpawnRecordsPid）；`AUTOWONDER_WORKSPACE_ROOT` 默认值注入经假进程回显验证（TestSpawnInjectsWorkspaceRootEnv）；workspace_root 覆盖走 env+argv 双通道（TestSpawnWorkspaceRootOverride，argv 文件断言含 `--workspace-root <path>`）；`--debug` 原样透传（TestSpawnDebugFlagPassthrough）；npx 缺失错误含中文与 awem doctor 指引、状态 Failed、events 有 executor_spawn_fail（TestSpawnNpxMissingClearError）；默认解析器本机实测可用。`GOOS=windows/darwin go build ./...` 通过（npx.cmd→cmd.exe /c 包装与 taskkill /T 分支编译在位，真机验证归 T10）。三绿通过，测试后无 fakeproc 残留进程 |
 
 ## 变更记录
@@ -102,3 +103,4 @@
 | 2026-10-24 | 创建 | 由任务计划生成 |
 | 2026-10-25 | 开工 | 子任务状态 ⬜→🔄；开工侦察从本机 npm 缓存的真实 autowonder@0.3.22 包源码与 vendored daemon 二进制采样运行时事实：① connect shim（bin/cli.js）会自行重算 AUTOWONDER_WORKSPACE_ROOT（取 --workspace-root flag 值，缺省 ~/autowonder_workspaces_<provider>_<executorId>），外部注入的同名 env 会被覆盖——故 awem 注入 env 仅为对齐设计措辞，按执行器覆盖的实际生效途径是 spawn 时追加 `--workspace-root <path>`（已确认是 connect 的合法 flag）；② 连接状态日志关键字实标（vendored daemon 二进制 strings，与 onboarding 技能 troubleshooting.md 的“ws connected 有且无 disconnect/reconnect → 连接健康”旁证一致）：connected=`ws connected`；reconnecting=`ws disconnected` / `reconnecting` / `retry after reconnect`（大小写不敏感子串匹配，实现在 F5） |
 | 2026-10-25 | F1 ✅ | 实现：`launchcmd.Argv`（命令→argv，保留原始 token 形态）；config 新增可选 `workspace_root` 字段（design §6“可按执行器覆盖”，覆盖经 argv 追加 `--workspace-root` 生效）；npx 解析策略——Unix 为 LookPath→`sh -lc 'command -v npx'` 回退（覆盖 GUI/服务启动缺 profile PATH 场景），Windows 为 LookPath(npx.cmd→npx.exe→npx) 且 spawn 经 `cmd.exe /c` 包装（Go 不能直接 exec 批处理）；子进程 spawn 时 `Setpgid=true` 自成进程组（F3 整树终止的前提）；事件枚举新增 `executor_spawn_fail`（T04 集合的增量） |
+| 2026-10-25 | F2 ✅ | 状态机选型：每执行器一个 supervise 循环（人为启动换代 gen，循环内自动拉起不换 goroutine）；状态枚举 Starting/Running/Backoff/Stopping/Stopped/Failed（对外契约，RunningLike=Starting/Running/Backoff/Stopping）；快照 BackoffDelay 取崩溃时算好的 pendingDelay；稳定期判定基准=本次进程 startedAt（Clock.Now 注入点，测试用毫秒级参数+真实时钟等价快进） |
