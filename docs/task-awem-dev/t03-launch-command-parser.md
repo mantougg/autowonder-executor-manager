@@ -37,8 +37,8 @@
 
 ### F3 · 命令重建（roundtrip）
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：结构化字段 + passthrough → 重新生成完整命令串（编辑视图保存时用）。保证：`parse(render(parse(x))) == parse(x)`（幂等）；未知 flag 不丢；渲染顺序稳定（已知字段按固定顺序，passthrough 按原顺序追加）；token 等含特殊字符的值正确加引号。
 - **验收要点**：
   - 幂等性单测（含 passthrough 的复杂样例）；
@@ -84,6 +84,7 @@
 |---|---|---|---|
 | 2026-10-25 | F1 | ✅ | 实跑 `go test ./internal/launchcmd/ -v` 5 用例全 PASS：单/双引号包裹空格、引号内另一引号、双引号转义 `\`"`、裸转义空格、相邻引号成一词（拆词与 shell 语义一致）；未闭合引号报错；版本提取（0.3.22）；nohup 叠加与尾部 & 剥离；7 种非法前缀（非 npx/无版本/@空/缺 connect/其他包/不支持 npx 参数/空命令）均返回 UnsupportedCommandError |
 | 2026-10-25 | F2 | ✅ | 实跑 `go test ./internal/launchcmd/ -run 'Parse|Validate' -v` 全 PASS：全字段命令解析结果深比较相等且 Validate 通过；`--flag=value` 与 `--flag value` 两形式等价；布尔 flag 纯式/`=false`/`=true`/非法值；未知 flag（--future-flag=v1、--another 42、裸词）完整保序进 passthrough；末尾缺值与"值位置是另一个 flag"均逐 flag 定位；executor-id 非数字/缺失、token 空、provider 非法/缺失各自报对应中文错误，2 项问题聚合计数 |
+| 2026-10-25 | F3 | ✅ | 实跑 `go test ./internal/launchcmd/ -run Render -v` 全 PASS：乱序输入渲染为固定顺序精确串比对；4 条含 passthrough/布尔/引号命令 assertRoundtrip（parse(render(parse))==parse 深比较）；空格/双引号值加单引号且 roundtrip 不变形；编辑 model/reasoning-effort 后 passthrough `--future-keep=v9` 原样保留；false 布尔不渲染；quoteValue 9 组边界（裸/带引号/内嵌单引号/前导横线/空串） |
 
 ## 变更记录
 
@@ -95,3 +96,5 @@
 | 2026-10-25 | F1 ✅ | Tokenize + parsePrefix（版本提取、包装容忍、结构化 UnsupportedCommandError）单测通过 |
 | 2026-10-25 | F2 选型：解析/校验分层 | 语法层问题（缺值、布尔带值、未知裸词）解析时报 FieldErrors（逐 flag 定位）；语义层三规则（executor-id 数字 / token 非空 / provider 枚举且须显式）由 `Validate()` 单独报，便于编辑场景区分"结构坏了"与"值不合法"。重复已知 flag 后者覆盖前者；值位置出现 `-` 开头的词按缺值报错（token 等值实际不含横线前缀）；多余裸词进 passthrough 保序 |
 | 2026-10-25 | F2 ✅ | Parsed 结构 + Parse/Validate，全字段/两形式/保序单测通过 |
+| 2026-10-25 | F3 选型：引用规则 | 值按保守安全字符集 `[A-Za-z0-9._~:@/+=,%-]` 裸输出（含 `-`），集合外或以 `-` 开头的值用单引号包裹（内嵌 `'` 转义为 `'\''`）；已知字段固定顺序渲染（ws-url→token→executor-id→provider→model→reasoning-effort→context-window→memory-mode→max-tasks→布尔→passthrough 原序）；布尔 false 不渲染（重解析同为 false，幂等成立） |
+| 2026-10-25 | F3 ✅ | Render + quoteValue，幂等/顺序/编辑保 passthrough 单测通过 |
