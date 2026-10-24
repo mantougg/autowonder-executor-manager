@@ -78,8 +78,15 @@ func main() {
 	case "exit-now":
 		os.Exit(atoiOr(flags["exit-code"], 0))
 	case "ignore-term":
+		// 只忽略 SIGTERM（再对 SIGTERM 调 Notify 会撤销忽略，故只监听 SIGINT）；
+		// -fake-ready-file 在忽略生效后写入，供测试确认可安全发信号
 		signal.Ignore(syscall.SIGTERM)
-		waitSignal()
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGINT)
+		if rf := flags["ready-file"]; rf != "" {
+			_ = os.WriteFile(rf, []byte("ready"), 0o644)
+		}
+		<-ch
 	case "tree":
 		self, err := os.Executable()
 		if err != nil {
