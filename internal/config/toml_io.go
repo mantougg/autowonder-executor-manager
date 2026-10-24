@@ -76,6 +76,9 @@ func MarshalTOML(c Config) string {
 		fmt.Fprintf(&b, "  name      = \"%s\"\n", escapeTOMLString(e.Name))
 		fmt.Fprintf(&b, "  command   = \"%s\"   # 整条启动命令\n", escapeTOMLString(e.Command))
 		fmt.Fprintf(&b, "  autostart = %s\n", strconv.FormatBool(e.Autostart))
+		if e.WorkspaceRoot != "" {
+			fmt.Fprintf(&b, "  workspace_root = \"%s\"   # 工作区根目录覆盖（缺省 ~/autowonder_workspaces_<provider>_<id>）\n", escapeTOMLString(e.WorkspaceRoot))
+		}
 		fmt.Fprintf(&b, "  [executor.restart]\n")
 		fmt.Fprintf(&b, "    enabled = %s   # 崩溃自动拉起（指数退避：1s 起步 ×2 上限 5m，稳定 10m 重置）\n", strconv.FormatBool(derefBool(e.Restart.Enabled, true)))
 		fmt.Fprintf(&b, "    backoff = \"%s\"\n", escapeTOMLString(orDefault(e.Restart.Backoff, "exponential")))

@@ -51,6 +51,11 @@ func (c *Config) Validate() error {
 				errs = append(errs, loc+"：command 校验不通过（"+verr.Error()+"）")
 			}
 		}
+
+		// workspace_root 可选；配了就不能是空白（空白意味着"想覆盖但没填路径"，按错误处理）
+		if e.WorkspaceRoot != "" && strings.TrimSpace(e.WorkspaceRoot) == "" {
+			errs = append(errs, loc+"：workspace_root 不能为空白字符串（留空=用默认值）")
+		}
 	}
 
 	if len(errs) > 0 {

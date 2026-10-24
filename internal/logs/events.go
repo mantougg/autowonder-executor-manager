@@ -20,6 +20,7 @@ const (
 	EventExecutorStop       EventType = "executor_stop"        // 执行器停止（人为）
 	EventExecutorCrash      EventType = "executor_crash"       // 执行器崩溃退出
 	EventExecutorRestart    EventType = "executor_restart"     // 执行器自动拉起
+	EventExecutorSpawnFail  EventType = "executor_spawn_fail"  // 执行器启动失败（npx/spawn/日志，T05-F1）
 	EventConfigLoaded       EventType = "config_loaded"        // 配置加载成功
 	EventConfigReloadFailed EventType = "config_reload_failed" // 配置热加载失败（旧配置继续生效）
 	EventConfigChanged      EventType = "config_changed"       // 配置变更生效

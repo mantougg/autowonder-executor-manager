@@ -32,10 +32,11 @@ type LogConfig struct {
 
 // Executor 是单个 [[executor]] 条目。
 type Executor struct {
-	Name      string        `toml:"name"`      // 全局唯一，[a-zA-Z0-9._-]（D8）
-	Command   string        `toml:"command"`   // 整条启动命令（主入口）
-	Autostart bool          `toml:"autostart"` // daemon 启动时是否自动拉起（默认 false）
-	Restart   RestartPolicy `toml:"restart"`   // 崩溃守护策略
+	Name          string        `toml:"name"`           // 全局唯一，[a-zA-Z0-9._-]（D8）
+	Command       string        `toml:"command"`        // 整条启动命令（主入口）
+	Autostart     bool          `toml:"autostart"`      // daemon 启动时是否自动拉起（默认 false）
+	WorkspaceRoot string        `toml:"workspace_root"` // 工作区根目录覆盖（空=默认 ~/autowonder_workspaces_<provider>_<id>，design §6"可按执行器覆盖"）
+	Restart       RestartPolicy `toml:"restart"`        // 崩溃守护策略
 }
 
 // RestartPolicy 是 [executor.restart] 段。
