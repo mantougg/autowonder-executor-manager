@@ -31,7 +31,30 @@ type Paths struct {
 // 三平台差异全部由 os.UserConfigDir() 承担，本函数只负责追加 awem/ 与子布局，
 // 测试可注入假 userConfigDir。
 func Layout(userConfigDir string) Paths {
-	root := filepath.Join(userConfigDir, "awem")
+	return layoutAt(filepath.Join(userConfigDir, "awem"))
+}
+
+// At 以 root 直接作为 awem 根目录构造布局（root 已是 ~/.config/awem 这一层，
+// 不再追加 awem/）。DefaultLayout 的 AWEM_CONFIG_DIR 分支与测试隔离用。
+func At(root string) Paths { return layoutAt(root) }
+
+// DefaultLayout 返回当前 OS 的真实布局。
+// 支持环境变量 AWEM_CONFIG_DIR 覆盖配置根：其值直接作为 awem 根目录
+// （等价于 ~/.config/awem 这一层），不再追加 awem/；测试隔离与多实例
+// 冒烟用（实现细节选型，记录于 T06 变更记录）。
+func DefaultLayout() (Paths, error) {
+	if dir := os.Getenv("AWEM_CONFIG_DIR"); dir != "" {
+		return At(dir), nil
+	}
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return Paths{}, fmt.Errorf("无法定位 OS 惯例配置目录：%w", err)
+	}
+	return layoutAt(filepath.Join(dir, "awem")), nil
+}
+
+// layoutAt 以 root 为 awem 根目录推导完整布局（Layout 的底层实现）。
+func layoutAt(root string) Paths {
 	data := filepath.Join(root, "data")
 	logs := filepath.Join(data, "logs")
 	return Paths{
@@ -44,15 +67,6 @@ func Layout(userConfigDir string) Paths {
 		EventsLog:       filepath.Join(logs, "events.log"),
 		ExecutorsLogDir: filepath.Join(logs, "executors"),
 	}
-}
-
-// DefaultLayout 返回当前 OS 的真实布局。
-func DefaultLayout() (Paths, error) {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return Paths{}, fmt.Errorf("无法定位 OS 惯例配置目录：%w", err)
-	}
-	return Layout(dir), nil
 }
 
 // dirPerm 是非 Windows 平台下 awem 目录的权限（仅当前用户）。

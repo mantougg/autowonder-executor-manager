@@ -57,6 +57,19 @@ func TestDefaultLayoutLinuxUserConfigDir(t *testing.T) {
 	}
 }
 
+// TestDefaultLayout环境变量覆盖 AWEM_CONFIG_DIR 直接作为根目录（不追加 awem/），
+// daemon 集成测试用它在临时目录隔离运行。
+func TestDefaultLayout环境变量覆盖(t *testing.T) {
+	t.Setenv("AWEM_CONFIG_DIR", "/fake/root")
+	p, err := DefaultLayout()
+	if err != nil {
+		t.Fatalf("DefaultLayout 报错：%v", err)
+	}
+	if p.Root != "/fake/root" || p.ConfigFile != filepath.Join("/fake/root", "config.toml") {
+		t.Fatalf("env 覆盖未生效：Root=%q ConfigFile=%q", p.Root, p.ConfigFile)
+	}
+}
+
 // TestEnsureDir生成目录树与默认配置 验证首次运行行为与幂等。
 func TestEnsureDir生成目录树与默认配置(t *testing.T) {
 	base := t.TempDir()

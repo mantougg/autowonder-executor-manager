@@ -3,11 +3,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"awem/internal/cli"
+	"awem/internal/config"
+	"awem/internal/daemon"
+	"awem/internal/exitcode"
 	"awem/internal/version"
 )
 
@@ -35,6 +41,28 @@ func buildRegistry() *cli.Registry {
 				return nil
 			}
 			fmt.Println("awem " + version.Version)
+			return nil
+		},
+	})
+
+	// daemon：前台常驻入口（service/systemd 托管对象，design §4/§12）。
+	r.Register(&cli.Command{
+		Name:    "daemon",
+		Summary: "前台运行常驻 daemon（服务托管/调试用；CLI 会自动拉起，无需手工运行）",
+		Usage:   "awem daemon",
+		Run: func(g cli.GlobalFlags, args []string) error {
+			if len(args) > 0 {
+				return exitcode.Usagef("awem daemon 不接受参数")
+			}
+			p, err := config.DefaultLayout()
+			if err != nil {
+				return exitcode.Wrap(exitcode.General, err)
+			}
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			if err := daemon.Run(ctx, daemon.Options{Paths: p}); err != nil {
+				return exitcode.Wrap(exitcode.General, err)
+			}
 			return nil
 		},
 	})
