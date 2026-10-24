@@ -68,6 +68,7 @@ npx -y autowonder@<ver> connect --ws-url wss://<host>/ws/executor --token <execu
 | 14 | 分发 | GitHub Releases + 一键安装脚本（POSIX sh + PowerShell），附 sha256 checksums |
 | 15 | 命名/存储 | `awem`；OS 惯例目录 `awem/`（`config.toml` + `data/`）；`import` 从旧 `~/.autowonder-executor/` 迁移，不原地混用 |
 | 16 | 本期交付 | 应用本体 + Agent 用 CLI 说明/技能 + 改造本地 `autowonder-project-onboarding` 模板（bash 脚本 → `awem add`） |
+| 17 | 观测页 | 默认首页 = Tab 容器（图表 + 列表）：图表按项目/小队聚合，列表平铺 ⇄ 树形（项目→小队→执行器）；数据全部来自本机 events.log 重放，不引入平台写/多机聚合 |
 
 ## 4. 总体架构
 
@@ -212,10 +213,17 @@ awem version
 
 - React SPA（`go:embed` 打包进二进制），v1 中文，i18n 框架预留、文案走语言包（D5）。
 - 页面：
-  - **总览**：执行器卡片/表格——名称、本地进程态、连接状态、平台 ONLINE/BUSY/OFFLINE、模型、autostart、漂移黄标、重启次数；行内 start/stop/restart；首列多选后支持批量 start/stop/delete（串行调用单条 API，删除保留日志）。
-  - **执行器详情**：WebSocket 实时日志尾部流 + 历史日志分页 + 结构化编辑表单。
+  - **观测**（默认首页，替代原总览页）：Tab 容器，两个 tab——
+    - **列表**：保留原总览全部能力（双状态列、行内 start/stop/restart、批量选择与批量操作、漂移黄标）；支持**平铺 ⇄ 树形**切换，树形为 项目 → 小队 → 执行器 三级（归属数据来自平台联动）；未联动执行器归入「未归属」组（排最后）；平台未配置 `[platform]` 时退化为平铺（切换控件隐藏）。
+    - **图表**：按项目/小队聚合的本机稳定性视图——可用率条形、崩溃/重启趋势柱、本地进程态 + 平台态分布环；时间窗口 24h / 7d 可切。数据源为本机管理事件日志重放（见下「统计数据」），页面如实标注数据起点。
+  - **执行器详情**：新增**运行时间带**（事件重放生成的状态区间条 + 崩溃标记，点击穿透定位日志到对应时间），保留原有 WebSocket 实时日志尾部流 + 历史日志分页 + 结构化编辑表单。
   - **添加/导入**：粘贴命令 → 解析预览（高亮 token/executor-id/model）→ 保存；导入旧脚本。
   - **设置**：平台地址/MCP 令牌、轮询间隔、日志保留。
+- 统计数据（观测页/时间带共用）：
+  - 新增 `internal/stats`（纯函数：重放 events.log → 状态区间序列与聚合分桶）；API 新增 `GET /api/stats/summary?window=24h|7d`（聚合）与 `GET /api/stats/executors/{name}/timeline?from&to`（单执行器区间）。
+  - 状态区间语义：running（success）/ backoff（warn）/ stopped（off）；崩溃为时间点标记；daemon 停机期间为「无数据」区间。
+  - 历史边界 = events.log 滚动起点；平台在线率历史需 platform poller 补记状态变更事件后支持（二期）。
+  - 分期：一期 = Tab 框架 + 列表 tab（平铺⇄树形，替换总览）+ 详情页时间带（默认 tab 暂为列表）；二期 = 图表 tab（就绪后切为默认 tab）。
 - 端口：默认自动挑空闲端口写回 config（可显式指定）；仅 127.0.0.1；API 校验 Host/Origin 防 CSRF（D4）。
 - 鉴权：首次访问输入一次 token（存浏览器 localStorage），之后请求带 token 头。
 
