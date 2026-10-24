@@ -102,3 +102,17 @@ make clean                 # 清理构建产物
 scripts/smoke.sh               # 三绿 + 交叉编译 + 前端构建 + Linux 服务全链路
 scripts/smoke.sh --skip-service # 无 systemd 的环境只跑构建与测试层
 ```
+
+## 发布
+
+打 tag 推送即自动发布（`.github/workflows/release.yml`）：
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+# CI：前端构建 → go vet/test + UI 自检（质量门）→ make release 五平台 +
+# checksums → 产物自检（sha256sum -c + 本机产物可执行）→ 创建 GitHub Release
+```
+
+- 版本含 `-`（如 `v0.1.0-rc1`）自动标记 prerelease；
+- `workflow_dispatch` 手动触发为草稿演练（用输入的版本号，不真正发版）；
+- 本地等价命令：`make release VERSION=v0.1.0`（产物与校验和在 `release/`）。
