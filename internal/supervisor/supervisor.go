@@ -391,7 +391,7 @@ func (s *Supervisor) StopExecutor(name string) error {
 		u.mu.Unlock()
 		return nil // 幂等
 	}
-	wasRunning := u.state == StateRunning || u.state == StateStarting
+	wasRunning := u.state == StateRunning
 	u.stopping = true
 	u.state = StateStopping
 	pid := u.pid

@@ -4,11 +4,11 @@ package supervisor
 
 import "time"
 
-// State 是执行器的本地守护状态。
+// State 是执行器的本地守护状态（对外契约：CLI/Web/事件引用）。
+// spawn 在 unit 锁内同步完成，"启动中"瞬态不对外暴露，故无 Starting 值。
 type State string
 
 const (
-	StateStarting State = "starting" // spawn 发起中（瞬态）
 	StateRunning  State = "running"  // 子进程运行中
 	StateBackoff  State = "backoff"  // 崩溃后退避等待自动拉起
 	StateStopping State = "stopping" // 人为停止进行中（宽限期内）
@@ -18,7 +18,7 @@ const (
 
 // RunningLike 报告 state 是否"在管/在跑"（幂等 start 的判断依据）。
 func RunningLike(s State) bool {
-	return s == StateStarting || s == StateRunning || s == StateBackoff || s == StateStopping
+	return s == StateRunning || s == StateBackoff || s == StateStopping
 }
 
 // ConnState 是从 connect 日志解析出的平台连接状态（F5；本地进程活着 ≠ 平台
