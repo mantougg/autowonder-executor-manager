@@ -47,8 +47,8 @@
 
 ### F4 · 执行器详情页
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：顶部状态摘要条（双状态 + pid/uptime/重启次数）；**日志查看器**：暗底 `#0d1117`（无论主题）、等宽 13px、渲染 ANSI 颜色、WS 实时尾部流、"跟随滚动"开关默认开、用户上滚自动暂停跟随、回底部恢复、历史日志向上翻页加载；**结构化编辑表单**：字段同 CLI edit（model/reasoning-effort/context-window/memory-mode/max-tasks/autostart/debug + 只读展示 executor-id/provider/ws-url 摘要），敏感字段（token）掩码 + 眼睛切换，保存前可逐字段修正，passthrough 未知 flag 提示"将保留"；保存走 PUT，成功 Toast。
 - **验收要点**：
   - 日志查看器在浅色主题下仍为暗底；ANSI 色样例渲染正确；跟随/暂停/恢复交互符合 §5；
