@@ -28,8 +28,8 @@
 
 ### F2 · 执行器归属自动发现
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：`list_projects`（READ 及以上空间）→ 逐空间 `list_executors(workspaceId)` → 按本地解析出的 `executor-id` 匹配归属，建立并缓存 `executor_id -> workspace_id` 映射（缓存落盘 `data/platform-cache.json` 还是纯内存：选定并记录，建议落盘减少冷启动轮询面）；触发时机：平台配置首次生效、执行器集合变化、缓存未命中；执行器在平台删除/迁移（轮询查不到或归属变化）→ 重新发现。发现不了（本地 id 平台不存在）→ 该执行器平台状态显示"未归属"，不算错误。
 - **验收要点**：
   - 假服务单测：多空间多执行器 → 映射正确；空间无权限 → 跳过；平台侧删除后重发现；
@@ -81,6 +81,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F2 | ✅ 通过 | 实跑 `go test ./internal/platform/ -run "Test发现|Test缓存|Test平台侧|Test未配置" -count=1`：多空间映射正确（10086→10000、20001→10001）且缓存落盘可读回；权限不足空间跳过（platform_skip 事件 + 可达空间归属仍建立）；缓存命中避免重复扫描（二次 ensureDiscovery list_projects 仍 1 次；新增本地 id 触发第 2 次全量）；平台侧删除后全量发现归属移除；未配置平台 ensureDiscovery no-op 且 Lookup 未命中。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F5 | ✅ 通过 | 实跑 `go test ./internal/platform/ -run "Test白名单|Test平台包" -count=1`：白名单外工具（create_workitem/assign_workitem/delete_executor/transition_workitem/方法名伪装/任意串）全部在客户端层拒绝且 httpCalled=false（无 HTTP 发出）；白名单恰为只读三件套；*Client 导出方法恰为 ListProjects/ListExecutors/GetExecutorLaunchConfig；包内源码（platform.go/mcp.go）不含写工具字符串。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F1 | ✅ 通过 | 实跑 `go test ./internal/platform/ -count=1`（4 用例）：TestMCP正常链路与会话头（多空间/执行器/心跳解析；工具名点号前缀经假服务调用记录断言；initialize 恰好一次）、TestMCP错误响应与权限分类（JSON-RPC permission 错误与 HTTP 401 均 IsPermissionErr；未知工具为一般错误）、TestMCP超时（ctx 超时返回错误）、TestMCP_SSE响应形态（text/event-stream data: 行可解析）。全仓三绿。 |
 

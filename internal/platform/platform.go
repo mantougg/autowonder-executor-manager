@@ -1,23 +1,10 @@
-// platform.go：平台状态联动的对外接口（T06 由 daemon 装配空实现预留，
-// T08 实现 MCP 只读轮询）。接口保持极简：API/CLI 只需要"按 executor-id
-// 查平台侧状态"，联动细节（发现/轮询/漂移）全部封装在实现内部。
+// platform.go：平台状态联动的包说明与禁用实现（T06 由 daemon 装配；
+// T08 起完整实现见 syncer.go/discovery.go/poller.go/drift.go）。
+// 接口与数据结构定义在 syncer.go（Syncer 接口、Status、DriftField）。
 package platform
 
-import "time"
-
-// Status 是单个执行器的平台侧状态快照（与本地进程状态并列展示，design §6）。
-type Status struct {
-	State         string    // ONLINE / BUSY / OFFLINE（空=未知/未联动）
-	LastHeartbeat time.Time // 平台侧最近心跳（零值=未知）
-}
-
-// Syncer 供给 API/CLI 的平台状态查询接口。
-// Lookup 按 executor-id 查最近一次轮询的状态；未联动或未匹配到时 ok=false。
-type Syncer interface {
-	Lookup(executorID string) (Status, bool)
-}
-
-// Noop 是 T08 之前的空实现：一律"未联动"。
+// Noop 是联动禁用实现：Lookup 恒返回未命中（未配置 [platform] 段时
+// daemon 装配它，本地功能完全不受影响）。
 type Noop struct{}
 
 // Lookup 实现 Syncer：恒返回未匹配。
