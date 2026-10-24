@@ -32,7 +32,7 @@
 | T08 | 平台状态联动（只读） | T02、T03、T06 | 6/6 | ✅ 已检查 | [t08-platform-sync.md](t08-platform-sync.md) |
 | T09 | Web SPA | T03、T06、T08 | 1/8 | 🔄 进行中 | [t09-web-spa.md](t09-web-spa.md) |
 | T10 | 系统服务与跨平台专项 | T06、T07 | 3/6 | ⏸️ 已暂停（F3/F4/F5 待真机） | [t10-service-cross-platform.md](t10-service-cross-platform.md) |
-| T11 | 打包分发与 Agent 文档 | T01–T10 | 2/4 | 🔄 进行中 | [t11-release-docs.md](t11-release-docs.md) |
+| T11 | 打包分发与 Agent 文档 | T01–T10 | 3/4 | ⏸️ F4 待用户复核 | [t11-release-docs.md](t11-release-docs.md) |
 
 ## 执行顺序与并行说明
 
@@ -138,4 +138,6 @@
 | 2026-10-25 | T11 开工 | T10 ⏸️ 不阻塞可无人值守部分；F1/F2/F3 推进、F4 待用户复核 |
 | 2026-10-25 | T11-F1 ✅ | 发布构建：make release 五平台 + checksums 实测全过（67/71） |
 | 2026-10-25 | T11-F2 ✅ | install.sh 本机演练（正常/幂等/坏校验拒绝）+ install.ps1（68/71） |
+| 2026-10-25 | T11-F3 ✅ | Agent 使用说明 docs/agent-guide.md（实测比对命令/schema/退出码一致）（69/71） |
+| 2026-10-25 | T11-F4 ⏸️ | 16 条决策核对表已填证据（15 ✅ + 决策 16 ⚠️：onboarding 技能改造在仓库外需用户执行）；待用户复核确认后总任务 ✅（70/71） |
 | 2026-10-25 | T09 开工 + F1 ✅ | Vite+React+TS 脚手架、设计令牌全量落地、主题机制、布局骨架（53/71） |

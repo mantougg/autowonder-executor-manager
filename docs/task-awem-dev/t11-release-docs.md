@@ -36,8 +36,8 @@
 
 ### F3 · Agent 使用说明文档
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：`docs/agent-guide.md`（暂名，可按仓库文档约定归档）：面向 AI Agent 的 CLI 维护指南——安装前置（含 service install）、全部子命令与参数、`--json` schema 表（引用 T07 变更记录的汇总）、退出码表、典型工作流（添加执行器/查状态排障/改模型/清理）、常见错误与处置（daemon 5、平台不可达、漂移含义）。**后续可独立成 skill**（design §15）。
 - **验收要点**：
   - 文档中的命令、schema、退出码与实现一致（抽查与 `awem --help`/实测比对）；
@@ -45,8 +45,8 @@
 
 ### F4 · 最终验收核对（16 条决策对照）
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成（待检查）
+- **检查状态**：⏸️ 待用户复核
 - **开发描述**：对照 design.md §3 核心决策总表逐条核对，产出核对表（附在本文件检查记录区）：每条决策给出证据（实现位置/测试名/文档链接）；发现未达成项 → 逐条登记并决定：补做（打回对应子任务）或经用户同意调整文档。同时复核交付边界 §15：应用本体 ✅、Agent 文档 ✅、onboarding 技能改造（仓库外，见 index.md 联动事项）状态注明。
 - **验收要点**：
   - 16/16 条决策有证据链接，无一空勾；
@@ -62,28 +62,29 @@
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
 | 2026-10-25 | F1 | ✅ 通过 | 实跑 `make release VERSION=v0.1.0-test`（退出码 0）：五产物（darwin-amd64 12M/darwin-arm64 11M/linux-amd64 12M/linux-arm64 11M/windows-amd64.exe 12M）+ checksums.txt；`cd release && sha256sum -c checksums.txt` 五项全部"成功"；本机执行 awem-linux-amd64 version 输出注入版本 `awem v0.1.0-test` + `--json` 含 version/os/arch/go。 |
-| 2026-10-25 | F2 | ✅ 通过 | install.sh 本机真实演练（本地 http 冒充镜像）：正常路径安装成功（`awem v0.1.0-test` 可执行、PATH 提示）、幂等重装 OK、**坏校验和拒绝安装**（exit 1、"sha256 不匹配…拒绝安装"文案、无文件残留）；`sh -n`/`dash -n` 语法检查过。install.ps1 语法解析检查待 pwsh 环境（本机无），真机安装演练待 Windows。 |
+| 2026-10-25 | F3 | ✅ 通过 | 实测比对：`awem --help` 命令集与文档速查表一致（restart/stop 为合并行，正则拆分校验）；退出码实测 status 不存在→3、坏命令→2、log 不存在→3 与文档表一致；doctor --json 5 项结构与文档一致（平台项 skipped=true）。 |
+| 2026-10-25 | F4 | ⏸️ 待用户复核 | 核对表 16/16 已填证据（无空勾）；按任务规则需用户复核确认后才标 ✅ 与总任务 ✅。 | install.sh 本机真实演练（本地 http 冒充镜像）：正常路径安装成功（`awem v0.1.0-test` 可执行、PATH 提示）、幂等重装 OK、**坏校验和拒绝安装**（exit 1、"sha256 不匹配…拒绝安装"文案、无文件残留）；`sh -n`/`dash -n` 语法检查过。install.ps1 语法解析检查待 pwsh 环境（本机无），真机安装演练待 Windows。 |
 
 ## 16 条决策核对表（F4 产出，逐条填证据）
 
 | # | 决策点 | 达成 | 证据 |
 |---|---|---|---|
-| 1 | 边界：单机自治 | ⬜ | |
-| 2 | 平台联动只读 60s 轮询 | ⬜ | |
-| 3 | 执行语义 + 崩溃拉起 | ⬜ | |
-| 4 | 单 daemon + Web + CLI | ⬜ | |
-| 5 | 直接 spawn、不依赖上游 daemon | ⬜ | |
-| 6 | Go + go:embed React | ⬜ | |
-| 7 | v1 纯 CLI（--json/幂等/退出码） | ⬜ | |
-| 8 | 粘贴命令一等公民 + import | ⬜ | |
-| 9 | 漂移标黄不回写 | ⬜ | |
-| 10 | 127.0.0.1 + token + 0600 | ⬜ | |
-| 11 | 日志滚动/保留 + 实时流 + 事件日志 | ⬜ | |
-| 12 | 两层自启（service + autostart） | ⬜ | |
-| 13 | 三平台原生 + Windows 专项 | ⬜ | |
-| 14 | Releases + 安装脚本 + checksums | ⬜ | |
-| 15 | 命名/存储目录 + 旧数据迁移 | ⬜ | |
-| 16 | 本期交付三项 | ⬜ | |
+| 1 | 边界：单机自治 | ✅ | 全部功能经本机 daemon（internal/daemon/daemon.go）；无多机/派发代码；API 仅 127.0.0.1（internal/api/server.go checkHost 白名单 + TestAuth鉴权与CSRF矩阵） |
+| 2 | 平台联动只读 60s 轮询 | ✅ | internal/platform/poller.go（interval 默认 60s 可配）+ discovery.go（list_projects→list_executors 归属发现）+ design §7；测试 Test轮询*/Test发现*；[platform] 未配置静默禁用（Test未配置平台轮询完全不启动） |
+| 3 | 执行语义 + 崩溃拉起 | ✅ | internal/supervisor/supervisor.go（指数退避 1s×2 上限 5m、稳定 10m 重置、可关、人为停止不拉起）；测试 TestBackoff*（-count=5 稳定） |
+| 4 | 单 daemon + Web + CLI | ✅ | 单二进制 cmd/awem（daemon 子命令 + cli.RegisterCommands + go:embed SPA）；make build 一命令产出（T09-F8 冒烟 8 项） |
+| 5 | 直接 spawn、不依赖上游 daemon | ✅ | internal/supervisor/npx.go spawn `npx -y autowonder@ver connect`；无 autowonder-daemon 依赖（AGENTS 附录 A 约定） |
+| 6 | Go + go:embed React | ✅ | web/embed.go（//go:embed all:dist）+ Vite React TS（T09-F1） |
+| 7 | v1 纯 CLI（--json/幂等/退出码） | ✅ | internal/cli + exitcode 包；退出码矩阵测试 Test退出码矩阵（30 子用例）；幂等（start 已运行 no-op 等 TestActions单名称三态）；MCP server 未实现（v1.5 边界保持） |
+| 8 | 粘贴命令一等公民 + import | ✅ | launchcmd.Parse/ParseScript + awem add/import；测试 TestAdd*/TestImport*（含真实模板 fixture） |
+| 9 | 漂移标黄不回写 | ✅ | internal/platform/drift.go（只读对比产出 DriftField；无任何写调用——白名单 Test白名单外工具直接拒绝）+ UI pill（Overview.tsx）+ 文案"v1 不自动回写" |
+| 10 | 127.0.0.1 + token + 0600 | ✅ | bind 校验仅 127.0.0.1（config/validate.go）+ api-token 0600（config/token.go + restrictTokenFilePerms）+ 三层中间件（TestAuth鉴权与CSRF矩阵 + 真实 curl 六项） |
+| 11 | 日志滚动/保留 + 实时流 + 事件日志 | ✅ | logs/sink.go 滚动 + cleaner.go 保留 + manager.go Tail/Follow + events.go JSONL + WS 实时流（api/ws.go + TestWS*）；--debug 透传（logs/debug.go） |
+| 12 | 两层自启（service + autostart） | ✅ | internal/service（Linux 真机全链路 ✅；macOS/Windows 代码完成待真机 ⏸️）+ supervisor autostart（ApplyConfig 首份拉起，TestAutostart*） |
+| 13 | 三平台原生 + Windows 专项 | ✅ | 五平台交叉编译持续全绿（smoke.sh A2）；pgid/taskkill 双路径（proc_unix/windows.go）；Windows 真机行为 ⏸️ 待回归（T10-F5 记录） |
+| 14 | Releases + 安装脚本 + checksums | ✅ | make release（五产物+checksums 实测 sha256sum -c 全过）+ scripts/install.sh（本机演练含坏校验拒绝）+ install.ps1 |
+| 15 | 命名/存储目录 + 旧数据迁移 | ✅ | config/paths.go（OS 惯例 awem/：config.toml+data）+ launchcmd/archive.go + awem import --with-logs（TestImportWithLogs归档） |
+| 16 | 本期交付三项 | ⚠️ | 应用本体 ✅ + Agent 文档 ✅（docs/agent-guide.md）；**onboarding 技能改造未动**（仓库外 ~/.agents/skills/autowonder-project-onboarding，index.md 联动事项明确"T11 完成后另行处理"——本仓库内无法完成，需用户在独立仓库执行或授权） |
 
 ## 变更记录
 
