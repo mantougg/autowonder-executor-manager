@@ -59,8 +59,8 @@
 
 ### F5 · 本地状态判定与连接状态解析
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：对外提供每执行器本地状态快照：进程存活、pid、uptime、重启次数、当前退避阶段 + **连接状态**（从 connect 日志输出解析：已连接 / 断线重连中 / 未知；关键字基于上游日志实标——开发时跑一次真实 connect 采样关键字并记入变更记录，附录 A 协议要点可旁证：PING/PONG 15s、平台心跳超时约 2 分钟，本地进程活着 ≠ 平台 ONLINE）。解析挂在 LogSink 的写入路径上（行级正则/前缀匹配，开销可控）。
 - **验收要点**：
   - 单测：注入模拟日志行 → 状态迁移正确（连接→断线→重连）；
@@ -93,6 +93,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F5 | ✅ | `go test ./internal/supervisor/ -run 'TestParseConnLine|TestConnState|TestSnapshotFields' -v -count=3` 稳定通过：10 行关键字表驱动（含真实行样例"ws connected url=… executorId=…"、"ws disconnected, reconnecting … retryIn=15s"、"ws disconnected before stable interval, reconnecting"、大小写不敏感、任务日志/shim 启动行不算连接事件）；假进程打印关键字行 → 快照连接状态 unknown→connected→reconnecting 迁移且原行落盘；快照字段全（pid/uptime/重启数/连接状态/退避/上次退出），uptime 增长、崩溃拉起后 restarts=1+pid 换新+uptime 重算+连接状态重置 unknown 断言 |
 | 2026-10-25 | F4 | ✅ | `go test ./internal/supervisor/ -run 'TestApplyConfig' -v -count=3` 稳定通过：autostart=true 应用配置即拉起、false 不动；注入"首次 npx 解析失败"的解析器——first=Failed 且有 executor_spawn_fail 事件，second 照常 Running（失败不阻塞）；热加载四阶段——新增 autostart 即时拉起、存量未运行不动、运行中进程配置重放不重启（pid 前后一致断言）、消失条目停止+移除且有 executor_stop 事件 |
 | 2026-10-25 | F3 | ✅ | `go test ./internal/supervisor/ -run 'TestStop' -v -count=3` 稳定通过：假进程树（tree 模式父起子进程）stop 后父/子进程均退出、`kill(-pgid, 0)` 探测进程组为空（无残留断言）；优雅期退出事件="人为停止（优雅退出…）"且无强杀字样；ignore-term 假进程等就绪文件（SIGTERM 忽略已生效）后 stop → 等满注入宽限 300ms 才 SIGKILL，事件含"宽限超时强杀"，耗时断言 ≥250ms；从未启动/已停止重复 stop 均 no-op 成功，未知执行器报"未找到" |
 | 2026-10-25 | F2 | ✅ | `go test ./internal/supervisor/ -run 'TestCrash|TestStable|TestManual' -v` 4 用例通过且 `-count=5` 稳定：崩溃自动拉起（假进程 exit 7，事件含退出码；第 1/2 次退避 20ms/40ms ×2 序列断言）；稳定运行 150ms（注入 StableReset，快进等价）后崩溃 → 退避从 20ms 重新起步且事件含"退避计数已重置"；restart.enabled=false 崩溃后 Failed 不拉起（150ms 观察窗，restarts=0）；人为 stop 不拉起 + 重复 stop 幂等 |
@@ -108,3 +109,4 @@
 | 2026-10-25 | F2 ✅ | 状态机选型：每执行器一个 supervise 循环（人为启动换代 gen，循环内自动拉起不换 goroutine）；状态枚举 Starting/Running/Backoff/Stopping/Stopped/Failed（对外契约，RunningLike=Starting/Running/Backoff/Stopping）；快照 BackoffDelay 取崩溃时算好的 pendingDelay；稳定期判定基准=本次进程 startedAt（Clock.Now 注入点，测试用毫秒级参数+真实时钟等价快进） |
 | 2026-10-25 | F3 ✅ | 实现要点：spawn 即 Setpgid（组长=自身 pid），停止=SIGTERM 整组 → 宽限 → SIGKILL 整组；Windows 走 taskkill /T（无 /F → /F 强杀），批处理 npx.cmd 经 cmd.exe /c 包装 exec；测试陷阱记录——SIGTERM 落在子进程 exec 初始化窗口会按默认处置杀死（真实场景等价于刚启动即停止=优雅退出），ignore-term 测试须等就绪文件再发信号 |
 | 2026-10-25 | F4 ✅ | 语义定稿：SetConfig 升级为 ApplyConfig 统一入口（daemon 启动注入首份配置=全部条目视为新增，即 autostart 拉起；热加载增量判定）；新增(autostart)即拉 / 存量未运行不动 / 运行中进程不重启（下次启动生效）/ 消失条目停止并移除受管单元；启动失败逐条记事件不阻塞 |
+| 2026-10-25 | F5 ✅ | 连接状态三值 unknown/connected/reconnecting（重连关键字优先于连接）；解析挂在 LogSink 写入路径（linePipe：字节原样落盘+行级回调，stdout/stderr 各一条管道共享 sink，Wait 后冲刷无换行尾行）；关键字来源=开工侦察实标（真实 vendored daemon 二进制 strings），任务文档中"跑一次真实 connect 采样"以静态采样替代（无人值守不碰真实平台，红线），上线后如遇新行样例在此扩充 |

@@ -63,6 +63,7 @@ type unit struct {
 	pendingDelay time.Duration // Backoff 态下当前等待的退避间隔（快照展示用）
 	lastExit     string        // 上次进程退出描述
 	conn         ConnState     // 连接状态（F5，从日志行解析）
+	pipes        []*linePipe   // 当前进程的日志行管道（Wait 后冲刷半行）
 	stopping     bool          // 人为停止进行中（supervise 据此不拉起）
 	gen          int           // 代数：每次人为启动递增，隔离旧循环迟写
 }
@@ -216,14 +217,24 @@ func (s *Supervisor) spawnLocked(u *unit) (*launchcmd.Parsed, error) {
 	if err != nil {
 		return fail("打开日志失败：" + err.Error())
 	}
-	// stdout/stderr 汇入执行器 LogSink（T04-F1 管道）；连接状态解析（F5）
-	// 挂到同一写入路径。argv[0] 的字面 "npx" 替换为解析到的真实路径。
-	cmd := newExecCmd(npxPath, argv[1:], env, sink, sink)
+	// stdout/stderr 经行管道进 LogSink：字节原样落日志，行级回调做连接状态
+	// 解析（F5）。argv[0] 的字面 "npx" 替换为解析到的真实路径。
+	onLine := func(line string) {
+		if cs, ok := ParseConnLine(line); ok {
+			u.mu.Lock()
+			u.conn = cs
+			u.mu.Unlock()
+		}
+	}
+	stdout := newLinePipe(sink, onLine)
+	stderr := newLinePipe(sink, onLine)
+	cmd := newExecCmd(npxPath, argv[1:], env, stdout, stderr)
 	if err := cmd.Start(); err != nil {
 		return fail("spawn 失败：" + err.Error())
 	}
 	u.cmd = cmd
 	u.pid = cmd.Process.Pid
+	u.pipes = []*linePipe{stdout, stderr}
 	u.state = StateRunning
 	u.stopping = false
 	u.startedAt = s.opts.Clock.Now()
@@ -292,6 +303,14 @@ func (s *Supervisor) supervise(u *unit, gen int) {
 
 		err := cur.Wait()
 		exitDesc := describeExit(err)
+		// Wait 返回后 io 拷贝已结束：冲刷行管道的残留半行（无换行结尾的尾日志）
+		u.mu.Lock()
+		pipes := u.pipes
+		u.pipes = nil
+		u.mu.Unlock()
+		for _, p := range pipes {
+			p.close()
+		}
 
 		u.mu.Lock()
 		u.lastExit = exitDesc
