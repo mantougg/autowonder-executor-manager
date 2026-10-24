@@ -1,6 +1,6 @@
 # T05 · Supervisor 进程守护
 
-- **子任务状态**：🔄 进行中
+- **子任务状态**：✅ 已检查
 - **前置依赖**：T02（配置与热加载）、T03（命令解析）、T04（日志与事件）
 - **设计依据**：[design.md](../design/design.md) §6（执行器生命周期）、§13（跨平台注意事项）、决策 #3/#5
 - **产物范围**：`internal/supervisor/`（spawn、守护状态机、停止、autostart、本地状态判定）+ 假子进程冒烟测试
@@ -77,8 +77,8 @@
 
 ### F7 · 假长驻子进程冒烟测试套件
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：沉淀可重复的冒烟套件（`internal/supervisor/smokey` 或 `_test` 构建）：用假长驻子进程（仓库自带小工具：可配置"运行/崩溃/忽略信号/打印日志行"）串起：启动 → 日志收割 → 崩溃自动拉起 → 优雅停 → 强杀路径 → 进程树无残留 → 事件序列断言。作为 T06/T10 回归基线。
 - **验收要点**：
   - `go test ./internal/supervisor/... -run Smoke` 一键可跑、全绿、无真实网络/npx 依赖；
@@ -93,6 +93,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F7 | ✅ | `go test ./internal/supervisor/... -run Smoke` 一键全绿（TestSmokeFullLifecycle 串联：autostart 拉起→连接行收割→外部击杀自动拉起→稳定重置事件→优雅停→强杀路径→事件序列序断言→历史 pgid 逐个清空断言+无未收割子进程；TestSmokeTreeKill：父起子进程树 Shutdown 整树清空）；-count=3 稳定，单轮 ~0.9s；全程注入假 npx（无真实 npx/网络/平台依赖）；测试后 pgrep 无 fakeproc 残留。修复过程中发现并修掉 Shutdown 先置 closed 导致停止被 unit() 拒绝的级联死锁 |
 | 2026-10-25 | F6 | ✅ | `go test ./internal/supervisor/ -run 'TestEvent' -v -count=3` 稳定通过：全生命周期（启动→崩溃→自动拉起→人为停止）events.log 按 JSONL 行序断言 start<(crash→restart)+<stop 序列完整且有序；崩溃事件详情含退出码（exit 7）、停止事件含退出描述、spawn_fail 详情含错误摘要（npx）；全量事件文本 grep 断言不含完整令牌 test-token-123456 |
 | 2026-10-25 | F5 | ✅ | `go test ./internal/supervisor/ -run 'TestParseConnLine|TestConnState|TestSnapshotFields' -v -count=3` 稳定通过：10 行关键字表驱动（含真实行样例"ws connected url=… executorId=…"、"ws disconnected, reconnecting … retryIn=15s"、"ws disconnected before stable interval, reconnecting"、大小写不敏感、任务日志/shim 启动行不算连接事件）；假进程打印关键字行 → 快照连接状态 unknown→connected→reconnecting 迁移且原行落盘；快照字段全（pid/uptime/重启数/连接状态/退避/上次退出），uptime 增长、崩溃拉起后 restarts=1+pid 换新+uptime 重算+连接状态重置 unknown 断言 |
 | 2026-10-25 | F4 | ✅ | `go test ./internal/supervisor/ -run 'TestApplyConfig' -v -count=3` 稳定通过：autostart=true 应用配置即拉起、false 不动；注入"首次 npx 解析失败"的解析器——first=Failed 且有 executor_spawn_fail 事件，second 照常 Running（失败不阻塞）；热加载四阶段——新增 autostart 即时拉起、存量未运行不动、运行中进程配置重放不重启（pid 前后一致断言）、消失条目停止+移除且有 executor_stop 事件 |
@@ -112,3 +113,4 @@
 | 2026-10-25 | F4 ✅ | 语义定稿：SetConfig 升级为 ApplyConfig 统一入口（daemon 启动注入首份配置=全部条目视为新增，即 autostart 拉起；热加载增量判定）；新增(autostart)即拉 / 存量未运行不动 / 运行中进程不重启（下次启动生效）/ 消失条目停止并移除受管单元；启动失败逐条记事件不阻塞 |
 | 2026-10-25 | F5 ✅ | 连接状态三值 unknown/connected/reconnecting（重连关键字优先于连接）；解析挂在 LogSink 写入路径（linePipe：字节原样落盘+行级回调，stdout/stderr 各一条管道共享 sink，Wait 后冲刷无换行尾行）；关键字来源=开工侦察实标（真实 vendored daemon 二进制 strings），任务文档中"跑一次真实 connect 采样"以静态采样替代（无人值守不碰真实平台，红线），上线后如遇新行样例在此扩充 |
 | 2026-10-25 | F6 ✅ | 事件矩阵收口：executor_start（含 debug 标记）/executor_stop（优雅 vs 强杀 vs 退避取消，含退出描述）/executor_crash（含退出码与稳定重置说明）/executor_restart（含第几次与退避时长）/executor_spawn_fail（含错误摘要）；状态枚举精简为 Running/Backoff/Stopping/Stopped/Failed（移除 Starting——spawn 在锁内同步完成，瞬态不对外暴露，契约诚实）；事件只记名称+详情，不回显命令行（令牌安全） |
+| 2026-10-25 | F7 ✅ + 子任务 ✅ | 冒烟套件沉淀于 internal/supervisor/smoke_test.go（fakeproc 工具：testdata/fakeproc，模式 run/crash/ignore-term/tree/child/exit-now + echo-env/lines/argv/pidfile/ready-file 探针），作为 T06/T10 回归基线；附带修复 Shutdown 顺序缺陷（closed 先置位→StopExecutor 被 unit() 拒绝→子进程杀不掉→wg.Wait 死锁）；7/7 功能点全部 ✅，子任务完成 |

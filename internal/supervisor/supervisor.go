@@ -448,9 +448,10 @@ func (s *Supervisor) RestartExecutor(name string) error {
 }
 
 // Shutdown 停止全部执行器并等待守护循环退出（daemon 退出时调用）。
+// 顺序：先停全部（closed 标志在停完后再置位，否则 unit() 会拒绝停止请求，
+// 子进程永远杀不掉），最后拒绝新的 start。
 func (s *Supervisor) Shutdown() {
 	s.mu.Lock()
-	s.closed = true
 	names := make([]string, 0, len(s.units))
 	for name := range s.units {
 		names = append(names, name)
@@ -460,6 +461,9 @@ func (s *Supervisor) Shutdown() {
 		_ = s.StopExecutor(name)
 	}
 	s.wg.Wait()
+	s.mu.Lock()
+	s.closed = true
+	s.mu.Unlock()
 }
 
 // UnitStatus 是单执行器的本地状态快照（F5；CLI status 与 Web 总览共用）。
