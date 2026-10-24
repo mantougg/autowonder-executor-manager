@@ -1,6 +1,6 @@
 # T01 · 工程骨架与构建基础
 
-- **子任务状态**：🔄 进行中（2026-10-24 开工，无人值守会话）
+- **子任务状态**：✅ 已检查（2026-10-24 全部功能点自检通过）
 - **前置依赖**：无（首个子任务）
 - **设计依据**：[design.md](../design/design.md) §4（总体架构）、§16（工程约定）、§8.2（退出码）
 - **产物范围**：`go.mod`、`cmd/awem/`、`internal/` 各包占位、`web/` 占位、`Makefile`
@@ -57,8 +57,8 @@
 
 ### F5 · go:embed 静态资源骨架
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-24 自检）
 - **开发描述**：`web/dist/` 占位页（含 `awem` 字样的最小 HTML）通过 `go:embed` 打进二进制；`internal/api/` 提供"返回嵌入的 index.html"最小 handler（本任务不要求鉴权/路由，T06 再完善）。目的：从第一天起保证"单二进制含 Web"的形态成立，后续 T09 只是替换 dist 内容。
 - **验收要点**：
   - 构建产物单文件可运行，访问占位路径能拿到嵌入页（可用 go 单测 httptest 验证 handler 返回 200）；
@@ -77,6 +77,7 @@
 | 2026-10-24 | F2 | ✅ | 实测真实二进制：`awem version`→`awem 0.0.0-dev`、`awem --json version`→`{"version":"0.0.0-dev"}`；`awem 不存在命令`与无参数均退出码 2 且输出中文用法；`awem add`（占位）→`错误：子命令 "add" 尚未实现` 退出码 1；单测 `go test ./internal/cli/ -v` 全 PASS（含全局 flag 透传、`--flag=false` 形式、退出码用例） |
 | 2026-10-24 | F3 | ✅ | 单测 `go test ./internal/exitcode/ ./internal/cli/` 全 PASS：常量断言 0/1/2/3/4/5 与 design.md §8.2 一致；5 种构造器 → Code()/Type() 映射、Wrap+嵌套 errors.As 穿透、裸错误回退 1 均有用例；捕获 stdout 验证 writeError JSON 输出合法可解析；实测二进制 `awem --json 不存在命令`→`{"error":{"code":2,…,"type":"usage"}}` 退出码 2、`awem --json add`→code 1 |
 | 2026-10-24 | F4 | ✅ | 实跑：`make build VERSION=v0.0.1-accept` 产出 `./awem` 且 `awem version`→`awem v0.0.1-accept`（ldflags 注入生效）；`make test`、`make vet` 退出码 0；`make clean` 后二进制消失；删除 web/dist/ 再 `make build` 自动从 web/placeholder/ 重建占位页；README 增补"开发者快速开始"一节（环境要求 + make 目标 + dist 策略说明） |
+| 2026-10-24 | F5 | ✅ | 实跑 `go test ./internal/api/ -v`：TestIndexHandler返回内嵌页 PASS（GET /、/index.html、/任意未定义路径 均 200、body 含 awem、Content-Type text/html）；`make build` 产出单文件 `./awem`（ELF 静态链接 2.8MB）；embed 路径核对：web/embed.go `//go:embed all:dist` 与 web/dist 约定一致；三绿通过 |
 
 ## 变更记录
 
@@ -92,3 +93,6 @@
 | 2026-10-24 | F3 选型：包位置 | 独立 `internal/exitcode` 包（非放 internal/cli）。理由：internal/api、supervisor 等非 CLI 层也要构造带退出码语义的错误，独立包避免反向依赖 CLI 框架。错误类型 `*exitcode.Error{Code,msg,Err}` + 构造器（Usagef/NotFoundf/AlreadyExistsf/DaemonNotRunningf/Generalf/Wrap）+ `Code(err)`/`Type(err)` 提取；--json 错误 schema 定为 `{"error":{"code":N,"type":"…","message":"…"}}`（type 为机器可读名：general/usage/not_found/already_exists/daemon_not_running，只增不改） |
 | 2026-10-24 | F3 ✅ | 退出码常量 + 错误类型 + Dispatch 集成，单测与实测通过 |
 | 2026-10-24 | F4 ✅ | Makefile（build/test/vet/clean + web-dist 钩子 + VERSION ldflags）与 README 开发者快速开始 |
+| 2026-10-24 | F5 选型：embed 承载位置 | embed Go 源码放 `web/embed.go`（package web，`//go:embed all:dist`）。理由：go:embed 只能嵌入本包目录子树，`web/` 是唯一能直达 dist/ 且语义正确的位置；web/ 同时作为 React 工程根（T09 落位 package.json），Go 工具链会忽略非 .go 文件，互不干扰。api 层经 `web.DistFS()/IndexHTML()` 消费，SPA 路由/鉴权留给 T06 |
+| 2026-10-24 | F5 ✅ | embed 骨架 + api.IndexHandler，httptest 与构建产物验证通过 |
+| 2026-10-24 | 子任务 ✅ | 5/5 功能点检查通过，三绿，子任务完成 |
