@@ -46,8 +46,8 @@
 
 ### F4 · 管理事件日志（events.log）
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：`data/logs/events.log` 记录管理事件：启停/崩溃/自动重启/配置加载（成功与失败）/配置变更/服务安装/日志清理等。格式选型（建议 JSONL：时间、类型、执行器（可空）、详情；理由记录）；提供类型化写入 API（`logs.Event(EventStart, name, detail)`）供全项目调用；同样受滚动/保留管理（事件日志体量小，可与执行器日志共用参数或单独放宽，取简单方案并记录）。
 - **验收要点**：
   - 单测：写事件 → 读回 JSONL 解析成功，字段齐；
@@ -84,6 +84,7 @@
 | 2026-10-25 | F1 | ✅ | 实跑 `go test ./internal/logs/ -v` 3 用例 PASS：文件落约定路径且重开追加不截断；8 goroutine × 50 行并发写后总行数 400 整、逐行格式校验无撕裂行；Close 后 Write 返回错误不 panic、重复 Close 幂等 |
 | 2026-10-25 | F2 | ✅ | 实跑 `go test ./internal/logs/ -run 滚动 -v` 3 用例 PASS：960 字节写入（maxBytes=100）产生 .1/.2/.3 且无 .4（keep 淘汰生效）、当前文件回到阈值内；keep=200 无淘汰时 500 行跨多次滚动总数守恒 500（滚动瞬间不丢行）；滚动全程对 Writer 透明（20 次写入含滚动全成功、内容合计完整） |
 | 2026-10-25 | F3 | ✅ | 实跑 `go test ./internal/logs/ -run 清理 -v` 2 用例 PASS：os.Chtimes 注入 mtime（8 天前/1 天前），7 天保留下恰删 3 个过期滚动文件（e1.log.1/.2、events.log.1），活动文件与未过期滚动文件与无关文件留存；onRemove 回调次数与删除数一致（清理事件）；目录不存在静默空返回、days<=0 默认 7 天删 30 天前文件 |
+| 2026-10-25 | F4 | ✅ | 实跑 `go test ./internal/logs/ -run '事件|MaskSecret' -v` 4 用例 PASS：写 2 事件读回 JSONL 逐行 json.Unmarshal 成功、type/executor/detail 字段齐、time 合理、空 executor omitempty；11 个事件类型常量覆盖 §11 场景（启停/崩溃/重启/配置加载成功与失败/变更/服务安装/清理/daemon 启停）；事件日志超阈值滚动产生 .1；MaskSecret 6 组边界（空/短/长令牌保留前4后4） |
 
 ## 变更记录
 
@@ -97,3 +98,5 @@
 | 2026-10-25 | F2 ✅ | 滚动链产生/淘汰、透明性、边界无丢行单测通过 |
 | 2026-10-25 | F3 选型：纯函数 + 回调 | CleanupExpired(dir, days, now, onRemove) 纯函数（now 可注入）、onRemove 回调登记清理事件；触发时机（启动 + 周期）由 daemon（T06）编排；只清理滚动文件 *.log.N，活动 *.log 不动（删除走 purge）；目录不存在静默返回；空间超限告警为可选项，v1 不做（避免误删） |
 | 2026-10-25 | F3 ✅ | CleanupExpired 单测（mtime 注入、只删过期、事件回调）通过 |
+| 2026-10-25 | F4 选型：JSONL + 复用 LogSink | 事件格式 JSONL（一行一事件：time/type/executor/detail，程序可解析、人可 grep、追加适配滚动）；EventLog 内部复用 LogSink（线程安全+滚动白得），滚动参数与执行器日志共用（事件量小，取简单方案）。附 MaskSecret 掩码助手（conventions §5 敏感令牌不回显） |
+| 2026-10-25 | F4 ✅ | EventLog + EventType 枚举 + MaskSecret，单测通过 |
