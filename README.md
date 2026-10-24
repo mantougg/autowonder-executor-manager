@@ -82,3 +82,23 @@ make clean                 # 清理构建产物
 ## 关联
 
 - 上游开源镜像与运行时文档：[aliyun/alibabacloud-landing-zone · ai-sdlc/auto-wonder](https://github.com/aliyun/alibabacloud-landing-zone/tree/master/ai-sdlc/auto-wonder)
+
+## 平台支持与 7×24 长跑建议
+
+- **Linux**：完整支持（systemd user 服务，`awem service install`；不登录常驻
+  需 `loginctl enable-linger <用户>`，install 输出会提示）。
+- **macOS**：launchd LaunchAgent（RunAtLoad + KeepAlive）；实现已就绪，
+  真机安装/卸载验证待 macOS 环境。
+- **Windows**：默认登录自启（HKCU Run，无需管理员）；备选 `sc create`
+  系统服务（需管理员，注意 session 0 限制：Node/qoder 环境变量须机器级）。
+  实现已就绪，真机验证待 Windows 环境。
+- **7×24 长跑场景推荐 Linux/macOS 或 WSL**（与平台最佳实践一致）：
+  进程树终止、UTF-8 管道、npx.cmd 解析均已做平台适配（`GOOS=windows`
+  交叉编译保证），但 Windows 原生路径未经真机回归。
+
+## 冒烟测试
+
+```bash
+scripts/smoke.sh               # 三绿 + 交叉编译 + 前端构建 + Linux 服务全链路
+scripts/smoke.sh --skip-service # 无 systemd 的环境只跑构建与测试层
+```

@@ -31,7 +31,7 @@
 | T07 | CLI 子命令集 | T03、T05、T06 | 10/10 | ✅ 已检查 | [t07-cli.md](t07-cli.md) |
 | T08 | 平台状态联动（只读） | T02、T03、T06 | 6/6 | ✅ 已检查 | [t08-platform-sync.md](t08-platform-sync.md) |
 | T09 | Web SPA | T03、T06、T08 | 1/8 | 🔄 进行中 | [t09-web-spa.md](t09-web-spa.md) |
-| T10 | 系统服务与跨平台专项 | T06、T07 | 2/6 | 🔄 进行中 | [t10-service-cross-platform.md](t10-service-cross-platform.md) |
+| T10 | 系统服务与跨平台专项 | T06、T07 | 3/6 | ⏸️ 已暂停（F3/F4/F5 待真机） | [t10-service-cross-platform.md](t10-service-cross-platform.md) |
 | T11 | 打包分发与 Agent 文档 | T01–T10 | 0/4 | ⬜ 未开始 | [t11-release-docs.md](t11-release-docs.md) |
 
 ## 执行顺序与并行说明
@@ -131,4 +131,8 @@
 | 2026-10-25 | T09-F8 ✅ + 子任务 ✅ | 构建链与 embed：make build 单命令、端到端冒烟 8 项全过、gzip 56.77KB 达标；T09 全部 8 功能点 ✅（60/71），已推送 |
 | 2026-10-25 | T10 开工 + F1 ✅ | service 框架：Platform 注册分发、幂等策略、CLI 接线（61/71） |
 | 2026-10-25 | T10-F2 ✅ | Linux systemd user 真机全链路：install/uninstall 干净幂等（62/71） |
+| 2026-10-25 | T10-F3 ⏸️ | macOS launchd：代码+模板单测+交叉编译完成，真机验证待 macOS 环境（63/71） |
+| 2026-10-25 | T10-F4 ⏸️ | Windows 登录自启（HKCU Run，sc create 备选文案）：代码完成，真机待验证（64/71） |
+| 2026-10-25 | T10-F5 ⏸️ | Windows 专项：交叉编译持续通过，真机行为待回归（65/71） |
+| 2026-10-25 | T10-F6 ✅ | 全链路冒烟 scripts/smoke.sh 一键全绿 + README 平台说明（66/71）；T10 ⏸️ 汇总：代码全部完成，macOS/Windows 真机验证待用户环境 |
 | 2026-10-25 | T09 开工 + F1 ✅ | Vite+React+TS 脚手架、设计令牌全量落地、主题机制、布局骨架（53/71） |

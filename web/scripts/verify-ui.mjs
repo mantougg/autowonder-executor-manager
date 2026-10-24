@@ -7,7 +7,11 @@
 //      暗底、LogViewer ANSI 色表[暗底语义固定的终端色]）；
 //   5. 间距只用 4/8/12/16/24/32 档（tokens.css 抽查）。
 import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const WEB_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+process.chdir(WEB_ROOT) // 任何目录调用都以 web/ 为根
 
 const fail = []
 const ok = (cond, msg) => { if (!cond) fail.push(msg) }
