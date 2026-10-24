@@ -24,7 +24,7 @@
 |---|---|---|---|---|---|
 | T01 | 工程骨架与构建基础 | — | 5/5 | ✅ 已检查 | [t01-project-scaffold.md](t01-project-scaffold.md) |
 | T02 | 配置与存储 | T01 | 5/6 | ⏸️ 已暂停（F3 待 T03） | [t02-config-storage.md](t02-config-storage.md) |
-| T03 | 启动命令解析与导入 | T01 | 5/6 | 🔄 进行中 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
+| T03 | 启动命令解析与导入 | T01 | 6/6 | ✅ 已检查 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
 | T04 | 日志系统 | T01、T02 | 0/6 | ⬜ 未开始 | [t04-logging.md](t04-logging.md) |
 | T05 | Supervisor 进程守护 | T02、T03、T04 | 0/7 | ⬜ 未开始 | [t05-supervisor.md](t05-supervisor.md) |
 | T06 | daemon 与本地 API | T02、T04、T05 | 0/7 | ⬜ 未开始 | [t06-daemon-api.md](t06-daemon-api.md) |
@@ -78,3 +78,4 @@
 | 2026-10-25 | T03-F3 ✅ | 命令重建 roundtrip 幂等，单测通过（3/6） |
 | 2026-10-25 | T03-F4 ✅ | 旧脚本 import 解析（真实 fixture），单测通过（4/6） |
 | 2026-10-25 | T03-F5 ✅ | 旧日志归档准备，单测通过（5/6） |
+| 2026-10-25 | T03-F6 ✅ + 子任务 ✅ | 测试矩阵收口（覆盖率 92.7%）；T03 全部 6 功能点 ✅，已推送 |

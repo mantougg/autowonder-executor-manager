@@ -1,6 +1,6 @@
 # T03 · 启动命令解析与导入
 
-- **子任务状态**：🔄 进行中（2026-10-25 开工，无人值守会话）
+- **子任务状态**：✅ 已检查（2026-10-25 全部功能点自检通过）
 - **前置依赖**：T01（与 T02 的名称/校验规则衔接：解析结果供 T02 F3 校验使用）
 - **设计依据**：[design.md](../design/design.md) §5.3（命令解析与结构化字段）、§8.1（add/import 命令）、决策 #8/#15
 - **产物范围**：`internal/launchcmd/`（纯函数库：解析、重建、导入解析）+ 单测矩阵
@@ -66,8 +66,8 @@
 
 ### F6 · 单测矩阵与边界覆盖
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：汇总建立 `internal/launchcmd` 的测试矩阵并补齐缺口：正常完整命令、缺字段、坏值、引号/空格变形、nohup 包装、未知 flag 多个、--flag=value 形式、中文/非法名、幂等 roundtrip、旧脚本全文 fixture。本功能点是"测试完备性"的收口，前五个功能点的测试若有遗漏在此补全。
 - **验收要点**：
   - `go test ./internal/launchcmd/...` 全绿且覆盖上述每类场景（表驱动用例清单可在测试文件注释中索引到本节）；
@@ -87,6 +87,7 @@
 | 2026-10-25 | F3 | ✅ | 实跑 `go test ./internal/launchcmd/ -run Render -v` 全 PASS：乱序输入渲染为固定顺序精确串比对；4 条含 passthrough/布尔/引号命令 assertRoundtrip（parse(render(parse))==parse 深比较）；空格/双引号值加单引号且 roundtrip 不变形；编辑 model/reasoning-effort 后 passthrough `--future-keep=v9` 原样保留；false 布尔不渲染；quoteValue 9 组边界（裸/带引号/内嵌单引号/前导横线/空串） |
 | 2026-10-25 | F4 | ✅ | 实跑 `go test ./internal/launchcmd/ -run ParseScript -v` 5 用例 PASS：真实模板 fixture（testdata/executor-manager.sh）恰解析 1 条、名称"NO1示例数字人"、命中占位符标记而非静默导入；合成脚本覆盖数组内外注释/空行跳过、合法条目直入、中文名→exec-10087 建议、单引号条目、无分隔符报错、坏命令报"不支持的命令"；建议名去重（exec-5 / exec-5-2）；无数组报错、空数组 0 条 |
 | 2026-10-25 | F5 | ✅ | 实跑 `go test ./internal/launchcmd/ -run Archive -v` 3 用例 PASS：改名映射（需求澄清.log→exec-10086.log 内容一致）、同名迁移、源缺失跳过并给原因；源目录文件数与内容均不变（只读源只写目标）、目标目录仅 1 个新文件；空映射 0 条 |
+| 2026-10-25 | F6 | ✅ | 实跑 `go test ./internal/launchcmd/ -cover` → ok，coverage: 92.7% of statements（≥85% 达标）；matrix_test.go 注释含 M1–M11 场景索引逐项指向对应测试文件/用例；补齐 ValidExecutorName 边界表（7 合法 + 9 非法）、4 条代表性命令组合 roundtrip、结构层错误 3 场景、未知 flag 不影响已知字段 |
 
 ## 变更记录
 
@@ -103,3 +104,5 @@
 | 2026-10-25 | F4 选型：改名建议策略 | 原名不合规但命令合法时建议名 = `exec-<executor-id>`（id 是最稳的定位符），解析失败时 `imported-<序号>`；同建议名冲突追加 `-2/-3`。占位符检测用 `<[^<>]+>` 正则（覆盖 `<runtimeVersion>`/`<id>`/`<内网地址>` 等），命中即标 ParseErr"疑似模板示例行"，不静默导入。真实模板已拷贝为 testdata/executor-manager.sh fixture |
 | 2026-10-25 | F4 ✅ | ParseScript + ValidExecutorName + suggestName，fixture/合成单测通过 |
 | 2026-10-25 | F5 ✅ | ArchiveLogs（改名映射/源缺失跳过/不动源目录），单测通过 |
+| 2026-10-25 | F6 ✅ | matrix_test.go 汇总 M1–M11 场景索引，覆盖率 92.7% |
+| 2026-10-25 | 子任务 ✅ | 6/6 功能点检查通过，三绿，子任务完成 |
