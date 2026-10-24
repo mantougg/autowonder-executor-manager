@@ -1,6 +1,6 @@
 # T09 · Web SPA
 
-- **子任务状态**：⬜ 未开始
+- **子任务状态**：🔄 进行中
 - **前置依赖**：T03（解析预览，经 API）、T06（REST/WS/鉴权）、T08（平台状态列与漂移数据；可先行开发本地部分，双状态列的平台列后接）
 - **设计依据**：[design.md](../design/design.md) §9（Web UI）、决策 #6/#10、D5（中文+语言包预留）；**视觉与交互全按 [ui-guidelines.md](../design/ui-guidelines.md)**
 - **产物范围**：`web/`（React SPA 源码 + 构建链 + go:embed 接线）
@@ -18,8 +18,8 @@
 
 ### F1 · 脚手架与设计令牌落地
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：Vite + React 脚手架（TS 与否选定记录；不强制组件库，若引入须可 tree-shake 且样式可覆盖到规范，图标用 lucide）；`tokens.css` 落地 ui-guidelines §2 全部 `--awem-*` 变量（中性色/强调色/状态色/字体/字号阶梯/间距档位/圆角/阴影），`:root` 浅色 + `[data-theme="dark"]` 深色；主题机制：默认跟随系统、设置页可覆盖、存 localStorage、切换**不刷新页面**；布局骨架（顶栏：产品名 + daemon/平台状态点 + 设置入口；内容区 1200px 居中）。
 - **验收要点**：
   - 变量清单与 ui-guidelines §2 逐项对齐（抽查色值）；
@@ -102,7 +102,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-10-25 | F1 | ✅ 通过 | 实跑验证：`npm install`（0 漏洞）→ `npm run build`（tsc --noEmit + vite build 通过，产物 gzip 后 JS 48.21KB / CSS 2.36KB）；python 脚本对照 ui-guidelines §2 抽查 10 项色值令牌（浅/深双侧）全部一致，间距/字号/圆角档位断言通过；grep 检查 base/components.css 与全部 tsx 无写死色值（#fff 按钮文字除外，记录于 F7 复核）；`make build` 单命令产出含 SPA 二进制 → 起 daemon 实测：/ 返回新 SPA（assets 引用）、JS 资源 200（148KB）、SPA 路由 fallback 200。Go 侧三绿 + 交叉编译。浏览器内三态主题切换的目视验收待用户复核（theme 机制为纯 CSS 变量 + data-theme 属性，机制经代码审查）。 |
 
 ## 变更记录
 

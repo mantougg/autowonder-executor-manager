@@ -17,7 +17,7 @@ build: web-dist
 #  - 工程尚未建立（当前阶段）→ 复制 web/placeholder/ 占位页
 web-dist:
 	@if [ -f web/package.json ] && [ -d web/node_modules ]; then \
-		echo ">> 构建前端（web/）…"; $(MAKE) -C web build; \
+		echo ">> 构建前端（web/，npm run build）…"; npm --prefix web run build; \
 	elif [ -f web/package.json ]; then \
 		echo ">> web/ 未安装依赖（缺 web/node_modules），跳过前端构建，沿用现有 web/dist/"; \
 	else \

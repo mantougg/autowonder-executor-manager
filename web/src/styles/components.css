@@ -1,0 +1,361 @@
+/* components.css：通用组件样式（ui-guidelines §4）。只引用 --awem-* 令牌。 */
+
+/* --- 按钮：primary / secondary / danger / ghost（§4） --- */
+.awem-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--awem-space-1);
+  height: 36px;
+  padding: 0 var(--awem-space-4);
+  border-radius: var(--awem-radius-control);
+  border: 1px solid transparent;
+  font-size: var(--awem-text-14);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--awem-motion-fast), border-color var(--awem-motion-fast),
+    color var(--awem-motion-fast);
+  white-space: nowrap;
+}
+.awem-btn:disabled {
+  color: var(--awem-fg-faint);
+  cursor: not-allowed;
+}
+.awem-btn-primary {
+  background: var(--awem-accent);
+  color: #fff;
+}
+.awem-btn-primary:hover:not(:disabled) {
+  background: var(--awem-accent-hover);
+}
+.awem-btn-secondary {
+  background: var(--awem-bg);
+  color: var(--awem-fg);
+  border-color: var(--awem-border);
+}
+.awem-btn-secondary:hover:not(:disabled) {
+  background: var(--awem-bg-muted);
+}
+.awem-btn-danger {
+  background: var(--awem-danger);
+  color: #fff;
+}
+.awem-btn-danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.awem-btn-ghost {
+  background: transparent;
+  color: var(--awem-fg-secondary);
+  border: none;
+  height: 28px;
+  padding: 0 var(--awem-space-2);
+}
+.awem-btn-ghost:hover:not(:disabled),
+.awem-btn-ghost:focus-visible {
+  background: var(--awem-bg-muted);
+  color: var(--awem-fg);
+}
+/* 紧凑档（表格行内） */
+.awem-btn-compact {
+  height: 32px;
+}
+
+/* --- 状态徽标：8px 圆点 + 13px 文字（§2.2 双编码） --- */
+.awem-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--awem-space-2);
+  font-size: var(--awem-text-13);
+  color: var(--awem-fg);
+}
+.awem-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--awem-off);
+  flex: none;
+}
+.awem-status.success .awem-status-dot { background: var(--awem-success); }
+.awem-status.busy .awem-status-dot { background: var(--awem-busy); }
+.awem-status.warn .awem-status-dot { background: var(--awem-warn); }
+.awem-status.danger .awem-status-dot { background: var(--awem-danger); }
+.awem-status.off .awem-status-dot { background: var(--awem-off); }
+
+/* 漂移 pill 徽标（挂在执行器名称旁） */
+.awem-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--awem-space-2);
+  border-radius: var(--awem-radius-pill);
+  font-size: var(--awem-text-12);
+  background: var(--awem-warn);
+  color: #fff;
+}
+.awem-pill.warn {
+  background: transparent;
+  color: var(--awem-warn);
+  border: 1px solid var(--awem-warn);
+}
+
+/* --- 表格（§4：行高 44px；表头 12px 次要色；行内操作 hover/焦点显现） --- */
+.awem-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--awem-border);
+  border-radius: var(--awem-radius-card);
+}
+.awem-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--awem-text-13);
+}
+.awem-table th {
+  text-align: left;
+  font-size: var(--awem-text-12);
+  font-weight: 500;
+  color: var(--awem-fg-secondary);
+  background: var(--awem-bg-subtle);
+  border-bottom: 1px solid var(--awem-border);
+  padding: 0 var(--awem-space-3);
+  height: 36px;
+  white-space: nowrap;
+}
+.awem-table td {
+  border-bottom: 1px solid var(--awem-border);
+  padding: 0 var(--awem-space-3);
+  height: 44px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.awem-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.awem-table tbody tr:hover {
+  background: var(--awem-bg-subtle);
+}
+.awem-row-actions {
+  display: inline-flex;
+  gap: var(--awem-space-1);
+  opacity: 0;
+  transition: opacity var(--awem-motion-fast);
+}
+.awem-table tbody tr:hover .awem-row-actions,
+.awem-row-actions:focus-within {
+  opacity: 1;
+}
+
+/* --- 表单（§4：label 在上，间距 8px；敏感字段掩码 + 眼睛） --- */
+.awem-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--awem-space-2);
+  margin-bottom: var(--awem-space-4);
+}
+.awem-field > label {
+  font-size: var(--awem-text-13);
+  color: var(--awem-fg-secondary);
+}
+.awem-input,
+.awem-textarea,
+.awem-select {
+  height: 36px;
+  padding: 0 var(--awem-space-3);
+  border: 1px solid var(--awem-border);
+  border-radius: var(--awem-radius-control);
+  background: var(--awem-bg);
+  color: var(--awem-fg);
+  font-size: var(--awem-text-14);
+  font-family: inherit;
+}
+.awem-textarea {
+  height: auto;
+  min-height: 96px;
+  padding: var(--awem-space-2) var(--awem-space-3);
+  font-family: var(--awem-font-mono);
+  font-size: var(--awem-text-13);
+  line-height: 1.45;
+  resize: vertical;
+}
+.awem-input:focus-visible,
+.awem-textarea:focus-visible,
+.awem-select:focus-visible {
+  outline: 2px solid var(--awem-accent);
+  outline-offset: -1px;
+  border-color: var(--awem-accent);
+}
+.awem-input.mono {
+  font-family: var(--awem-font-mono);
+  font-size: var(--awem-text-13);
+}
+.awem-secret {
+  display: flex;
+  gap: var(--awem-space-1);
+}
+.awem-secret .awem-input {
+  flex: 1;
+}
+.awem-eye {
+  background: transparent;
+  border: none;
+  color: var(--awem-fg-secondary);
+  cursor: pointer;
+  border-radius: var(--awem-radius-control);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--awem-space-2);
+}
+.awem-eye:hover {
+  background: var(--awem-bg-muted);
+  color: var(--awem-fg);
+}
+
+/* 开关（表单布尔项） */
+.awem-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: var(--awem-radius-pill);
+  border: 1px solid var(--awem-border);
+  background: var(--awem-bg-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: background var(--awem-motion-fast);
+}
+.awem-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--awem-fg-secondary);
+  transition: left var(--awem-motion-fast), background var(--awem-motion-fast);
+}
+.awem-switch[aria-checked='true'] {
+  background: var(--awem-accent);
+  border-color: var(--awem-accent);
+}
+.awem-switch[aria-checked='true']::after {
+  left: 18px;
+  background: #fff;
+}
+
+/* --- 卡片 / 分组表单 --- */
+.awem-card {
+  background: var(--awem-bg-subtle);
+  border: 1px solid var(--awem-border);
+  border-radius: var(--awem-radius-card);
+  padding: var(--awem-space-6);
+}
+.awem-card + .awem-card {
+  margin-top: var(--awem-space-4);
+}
+.awem-card-title {
+  font-size: var(--awem-text-16);
+  font-weight: 600;
+  margin: 0 0 var(--awem-space-4);
+}
+
+/* --- Dialog（§4：Esc 可关；浮层阴影；遮罩） --- */
+.awem-dialog-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.awem-dialog {
+  width: min(420px, calc(100vw - 48px));
+  background: var(--awem-bg);
+  border: 1px solid var(--awem-border);
+  border-radius: var(--awem-radius-card);
+  box-shadow: var(--awem-shadow-float);
+  padding: var(--awem-space-6);
+}
+.awem-dialog-title {
+  font-size: var(--awem-text-16);
+  font-weight: 600;
+  margin: 0 0 var(--awem-space-3);
+}
+.awem-dialog-body {
+  color: var(--awem-fg-secondary);
+  font-size: var(--awem-text-14);
+  margin-bottom: var(--awem-space-6);
+}
+.awem-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--awem-space-2);
+}
+
+/* --- Toast（§4：右下角 3s；成功中性 / 失败 danger） --- */
+.awem-toast-wrap {
+  position: fixed;
+  right: var(--awem-space-6);
+  bottom: var(--awem-space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--awem-space-2);
+  z-index: 110;
+}
+.awem-toast {
+  min-width: 260px;
+  max-width: 380px;
+  background: var(--awem-bg-subtle);
+  border: 1px solid var(--awem-border);
+  border-left: 3px solid var(--awem-accent);
+  border-radius: var(--awem-radius-control);
+  box-shadow: var(--awem-shadow-float);
+  padding: var(--awem-space-2) var(--awem-space-3);
+  font-size: var(--awem-text-13);
+  animation: awem-toast-in var(--awem-motion);
+}
+.awem-toast.error {
+  border-left-color: var(--awem-danger);
+}
+@keyframes awem-toast-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* --- 空状态（§4：一句话 + 主按钮，居中） --- */
+.awem-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--awem-space-4);
+  padding: var(--awem-space-8) var(--awem-space-4);
+  color: var(--awem-fg-secondary);
+}
+
+/* --- 加载骨架屏（§4：局部，不整屏白屏） --- */
+.awem-skeleton {
+  background: linear-gradient(90deg, var(--awem-bg-muted) 25%, var(--awem-bg-subtle) 50%, var(--awem-bg-muted) 75%);
+  background-size: 200% 100%;
+  animation: awem-skeleton 1.2s ease-in-out infinite;
+  border-radius: var(--awem-radius-control);
+  height: 44px;
+}
+@keyframes awem-skeleton {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* --- 错误提示块 --- */
+.awem-error-text {
+  color: var(--awem-danger);
+  font-size: var(--awem-text-13);
+}
+.awem-hint {
+  color: var(--awem-fg-faint);
+  font-size: var(--awem-text-12);
+}

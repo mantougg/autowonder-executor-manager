@@ -30,7 +30,7 @@
 | T06 | daemon 与本地 API | T02、T04、T05 | 7/7 | ✅ 已检查 | [t06-daemon-api.md](t06-daemon-api.md) |
 | T07 | CLI 子命令集 | T03、T05、T06 | 10/10 | ✅ 已检查 | [t07-cli.md](t07-cli.md) |
 | T08 | 平台状态联动（只读） | T02、T03、T06 | 6/6 | ✅ 已检查 | [t08-platform-sync.md](t08-platform-sync.md) |
-| T09 | Web SPA | T03、T06、T08 | 0/8 | ⬜ 未开始 | [t09-web-spa.md](t09-web-spa.md) |
+| T09 | Web SPA | T03、T06、T08 | 1/8 | 🔄 进行中 | [t09-web-spa.md](t09-web-spa.md) |
 | T10 | 系统服务与跨平台专项 | T06、T07 | 0/6 | ⬜ 未开始 | [t10-service-cross-platform.md](t10-service-cross-platform.md) |
 | T11 | 打包分发与 Agent 文档 | T01–T10 | 0/4 | ⬜ 未开始 | [t11-release-docs.md](t11-release-docs.md) |
 
@@ -121,3 +121,4 @@
 | 2026-10-25 | T08-F3 ✅ | 状态轮询：按空间分组刷新/unreachable 退避恢复/未配置不启动（50/71） |
 | 2026-10-25 | T08-F4 ✅ | 漂移检测：五字段对比/权限静默跳过/与轮询同周期（51/71） |
 | 2026-10-25 | T08-F6 ✅ + 子任务 ✅ | API/CLI/doctor 接入：平台状态+漂移视图、/api/platform/health、daemon 热装配；T08 全部 6 功能点 ✅（52/71），已推送 |
+| 2026-10-25 | T09 开工 + F1 ✅ | Vite+React+TS 脚手架、设计令牌全量落地、主题机制、布局骨架（53/71） |

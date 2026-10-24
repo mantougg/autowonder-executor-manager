@@ -1,0 +1,115 @@
+/* base.css：全局基础样式与布局骨架（ui-guidelines §2.3/§3）。
+   组件样式集中在 components.css，全部只引用 --awem-* 令牌。 */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--awem-bg);
+  color: var(--awem-fg);
+  font-family: var(--awem-font-sans);
+  font-size: var(--awem-text-14);
+  line-height: 1.5;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* §3 布局：顶栏一行 + 内容 1200px 居中 */
+.awem-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.awem-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 var(--awem-space-6);
+  border-bottom: 1px solid var(--awem-border);
+  background: var(--awem-bg);
+}
+
+.awem-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--awem-space-2);
+  font-size: var(--awem-text-16);
+  font-weight: 600;
+}
+
+.awem-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--awem-space-4);
+}
+
+.awem-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--awem-space-6);
+}
+
+/* §3 页面骨架：标题行（页面标题 + 主操作）→ 内容区 */
+.awem-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--awem-space-4);
+}
+
+.awem-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.awem-page-title {
+  font-size: var(--awem-text-20);
+  font-weight: 600;
+  margin: 0;
+}
+
+a {
+  color: var(--awem-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--awem-accent-hover);
+}
+
+/* §6 可访问性：焦点环 2px accent，不得去除 */
+:focus-visible {
+  outline: 2px solid var(--awem-accent);
+  outline-offset: 2px;
+}
+
+code,
+.mono {
+  font-family: var(--awem-font-mono);
+}
+
+/* prefers-reduced-motion：关闭过渡动画 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

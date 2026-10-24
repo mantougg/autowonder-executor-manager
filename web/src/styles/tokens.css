@@ -1,0 +1,73 @@
+/* tokens.css：ui-guidelines.md §2 全部 --awem-* 设计令牌。
+   组件只引用变量，不写死色值（规范红线）。 */
+
+:root {
+  /* §2.1 中性色与强调色（浅色） */
+  --awem-bg: #ffffff;
+  --awem-bg-subtle: #f6f7f9;
+  --awem-bg-muted: #eef0f3;
+  --awem-fg: #1a1d21;
+  --awem-fg-secondary: #5a6169;
+  --awem-fg-faint: #8b9199;
+  --awem-border: #e2e5e9;
+  --awem-accent: #2563eb;
+  --awem-accent-hover: #1d4ed8;
+
+  /* §2.2 状态色（语义固定，不得挪作装饰） */
+  --awem-success: #16a34a;
+  --awem-busy: #2563eb;
+  --awem-off: #8b9199;
+  --awem-warn: #d97706;
+  --awem-danger: #dc2626;
+
+  /* §2.3 字体 */
+  --awem-font-sans: -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --awem-font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono",
+    Consolas, Menlo, monospace;
+
+  /* §2.3 字号阶梯（px） */
+  --awem-text-12: 12px;
+  --awem-text-13: 13px;
+  --awem-text-14: 14px;
+  --awem-text-16: 16px;
+  --awem-text-20: 20px;
+
+  /* §2.4 间距档位（4px 基准网格，仅此六档） */
+  --awem-space-1: 4px;
+  --awem-space-2: 8px;
+  --awem-space-3: 12px;
+  --awem-space-4: 16px;
+  --awem-space-6: 24px;
+  --awem-space-8: 32px;
+
+  /* §2.4 圆角 */
+  --awem-radius-control: 6px;
+  --awem-radius-card: 8px;
+  --awem-radius-pill: 9999px;
+
+  /* §2.4 阴影（仅浮层：下拉、Dialog、Toast） */
+  --awem-shadow-float: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+  /* §2.4 动效 */
+  --awem-motion-fast: 150ms ease-out;
+  --awem-motion: 200ms ease-out;
+}
+
+[data-theme="dark"] {
+  --awem-bg: #0f1113;
+  --awem-bg-subtle: #16191d;
+  --awem-bg-muted: #1e2227;
+  --awem-fg: #e6e8eb;
+  --awem-fg-secondary: #9aa1a9;
+  --awem-fg-faint: #6b727a;
+  --awem-border: #2a2f36;
+  --awem-accent: #3b82f6;
+  --awem-accent-hover: #60a5fa;
+
+  --awem-success: #22c55e;
+  --awem-busy: #3b82f6;
+  --awem-off: #6b727a;
+  --awem-warn: #f59e0b;
+  --awem-danger: #ef4444;
+}
