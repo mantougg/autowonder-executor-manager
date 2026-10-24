@@ -138,6 +138,7 @@ func (s *Service) Refresh(ctx context.Context) error {
 				AgentName:     e.AgentName,
 				Project:       projNames[wsOfID[id]],
 				Squad:         e.Squad(),
+				SquadNames:    append([]string(nil), e.SquadNames...),
 			}
 		} else {
 			// 有归属但本轮查不到（平台刚删除/迁移）或无归属 → unowned，

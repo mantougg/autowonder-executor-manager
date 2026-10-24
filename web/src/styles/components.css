@@ -395,3 +395,201 @@
   color: var(--awem-fg-faint);
   font-size: var(--awem-text-12);
 }
+
+/* --- Tabs（一期：仅「列表」；二期预留图表） --- */
+.awem-tabs {
+  display: flex;
+  gap: var(--awem-space-4);
+  border-bottom: 1px solid var(--awem-border);
+  margin-bottom: var(--awem-space-4);
+}
+.awem-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: var(--awem-space-2) 0;
+  font-size: var(--awem-text-14);
+  font-family: inherit;
+  color: var(--awem-fg-secondary);
+  cursor: pointer;
+  transition: color var(--awem-motion-fast), border-color var(--awem-motion-fast);
+}
+.awem-tab:hover {
+  color: var(--awem-fg);
+}
+.awem-tab[aria-selected='true'] {
+  color: var(--awem-fg);
+  border-bottom-color: var(--awem-accent);
+}
+.awem-tab:focus-visible {
+  outline: 2px solid var(--awem-accent);
+  outline-offset: 2px;
+}
+
+/* --- 列表工具行与平铺/树形分段切换（高 32px） --- */
+.awem-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--awem-space-3);
+  margin-bottom: var(--awem-space-2);
+}
+.awem-segmented {
+  display: inline-flex;
+  height: 32px;
+  border: 1px solid var(--awem-border);
+  border-radius: var(--awem-radius-control);
+  overflow: hidden;
+  background: var(--awem-bg);
+}
+.awem-segmented button {
+  border: none;
+  background: transparent;
+  padding: 0 var(--awem-space-3);
+  font-size: var(--awem-text-13);
+  font-family: inherit;
+  color: var(--awem-fg-secondary);
+  cursor: pointer;
+  transition: background var(--awem-motion-fast), color var(--awem-motion-fast);
+}
+.awem-segmented button:hover {
+  color: var(--awem-fg);
+}
+.awem-segmented button[aria-pressed='true'] {
+  background: var(--awem-bg-muted);
+  color: var(--awem-fg);
+  font-weight: 600;
+}
+.awem-segmented button:focus-visible {
+  outline: 2px solid var(--awem-accent);
+  outline-offset: -2px;
+}
+
+/* --- 树形列表（组行 44px；缩进由行内 style 按 16px/级） --- */
+.awem-tree-group {
+  background: var(--awem-bg-subtle);
+}
+.awem-tree-group:hover {
+  background: var(--awem-bg-muted);
+}
+.awem-tree-group td {
+  height: 44px;
+}
+.awem-tree-group-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--awem-space-2);
+  height: 44px;
+  padding-right: var(--awem-space-3);
+}
+.awem-tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--awem-space-1);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--awem-fg);
+  font-size: var(--awem-text-13);
+  font-family: inherit;
+  cursor: pointer;
+}
+.awem-tree-toggle:focus-visible {
+  outline: 2px solid var(--awem-accent);
+  outline-offset: 2px;
+}
+.awem-tree-name {
+  font-weight: 600;
+}
+.awem-tree-badge {
+  margin-left: auto;
+  padding: 0 var(--awem-space-2);
+  border-radius: var(--awem-radius-pill);
+  background: var(--awem-bg-muted);
+  color: var(--awem-fg-secondary);
+  font-family: var(--awem-font-mono);
+  font-size: var(--awem-text-12);
+}
+.awem-tree-leaf > td {
+  height: 44px;
+}
+
+/* --- 运行时间带（高 20px；无数据斜纹；崩溃 danger ✕） --- */
+.awem-timeline-card {
+  padding-top: var(--awem-space-4);
+  padding-bottom: var(--awem-space-4);
+}
+.awem-timeline-bar {
+  position: relative;
+  height: 20px;
+  margin-top: var(--awem-space-1);
+  border: 1px solid var(--awem-border);
+  border-radius: var(--awem-radius-control);
+}
+.awem-timeline-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.awem-timeline-seg.running { background: var(--awem-success); }
+.awem-timeline-seg.backoff { background: var(--awem-warn); }
+.awem-timeline-seg.stopped { background: var(--awem-off); }
+.awem-timeline-seg.nodata {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    var(--awem-border) 4px 5px
+  );
+}
+.awem-timeline-seg:focus-visible {
+  outline: 2px solid var(--awem-accent);
+  outline-offset: 1px;
+  z-index: 1;
+}
+.awem-timeline-crash {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--awem-danger);
+  background: var(--awem-bg);
+  color: var(--awem-danger);
+  font-size: var(--awem-text-12);
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+.awem-timeline-crash:hover,
+.awem-timeline-crash:focus-visible {
+  background: var(--awem-danger);
+  color: var(--awem-bg);
+}
+.awem-timeline-tip {
+  position: absolute;
+  bottom: calc(100% + var(--awem-space-2));
+  transform: translateX(-50%);
+  padding: var(--awem-space-1) var(--awem-space-2);
+  border: 1px solid var(--awem-border);
+  border-radius: var(--awem-radius-control);
+  background: var(--awem-bg);
+  color: var(--awem-fg);
+  box-shadow: var(--awem-shadow-float);
+  font-family: var(--awem-font-mono);
+  font-size: var(--awem-text-12);
+  white-space: nowrap;
+  z-index: 3;
+}
+.awem-timeline-hint {
+  margin-top: var(--awem-space-2);
+  color: var(--awem-fg-faint);
+  font-size: var(--awem-text-12);
+}
+.awem-timeline-notice {
+  margin-bottom: var(--awem-space-2);
+  color: var(--awem-fg-secondary);
+  font-size: var(--awem-text-12);
+}

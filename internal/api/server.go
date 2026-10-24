@@ -61,6 +61,7 @@ func (s *Server) SetStartedAt(t time.Time) { s.startedAt = t }
 func (s *Server) Handler() http.Handler {
 	api := http.NewServeMux()
 	s.registerExecutorRoutes(api)
+	s.registerStatsRoutes(api)
 	s.registerSettingsRoutes(api)
 	// 未定义 API 端点也按 JSON 错误契约返回（不落 ServeMux 纯文本 404）
 	api.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

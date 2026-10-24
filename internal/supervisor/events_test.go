@@ -9,9 +9,12 @@ import (
 
 // eventEntry 是从 events.log 解析出的一条事件（按文件行序=时间序）。
 type eventEntry struct {
-	Type     string `json:"type"`
-	Executor string `json:"executor"`
-	Detail   string `json:"detail"`
+	Type      string `json:"type"`
+	Executor  string `json:"executor"`
+	Detail    string `json:"detail"`
+	Restart   *bool  `json:"restart"`
+	LogFile   string `json:"log_file"`
+	LogOffset int64  `json:"log_offset"`
 }
 
 // readEvents 按行序解析事件日志。
@@ -78,12 +81,15 @@ func TestEventSequenceFullLifecycle(t *testing.T) {
 	}
 	// 排障信息：崩溃事件含退出码；停止事件含退出描述
 	crashDetail, stopDetail := "", ""
+	var crashEvent *eventEntry
 	for _, ev := range events {
 		if ev.Executor != "e1" {
 			continue
 		}
 		if ev.Type == "executor_crash" && crashDetail == "" {
 			crashDetail = ev.Detail
+			cp := ev
+			crashEvent = &cp
 		}
 		if ev.Type == "executor_stop" {
 			stopDetail = ev.Detail
@@ -91,6 +97,13 @@ func TestEventSequenceFullLifecycle(t *testing.T) {
 	}
 	if !strings.Contains(crashDetail, "exit 7") {
 		t.Fatalf("崩溃事件缺退出码：%q", crashDetail)
+	}
+	// 崩溃事件增量字段：自动拉起意图 + 日志定位（文件标识 + 字节偏移）。
+	if crashEvent == nil || crashEvent.Restart == nil || !*crashEvent.Restart {
+		t.Fatalf("崩溃事件应标记将自动拉起：%+v", crashEvent)
+	}
+	if crashEvent.LogFile != "e1.log" || crashEvent.LogOffset < 0 {
+		t.Fatalf("崩溃事件应携带日志定位：%+v", crashEvent)
 	}
 	if !strings.Contains(stopDetail, "退出") && !strings.Contains(stopDetail, "取消拉起") {
 		t.Fatalf("停止事件缺描述：%q", stopDetail)
@@ -113,5 +126,35 @@ func TestEventSpawnFailDetail(t *testing.T) {
 	}
 	if !strings.Contains(events[len(events)-1].Detail, "npx") {
 		t.Fatalf("失败详情应含错误摘要：%q", events[len(events)-1].Detail)
+	}
+}
+
+// 崩溃明确不拉起：事件 restart=false 且仍携带日志定位（时间带降级依据）。
+func TestEventCrashNoRestartFields(t *testing.T) {
+	e := newTestEnv(t)
+	ex := execWith("e1", "-fake-mode=crash -fake-after=20ms -fake-exit-code=9")
+	disabled := false
+	ex.Restart.Enabled = &disabled
+	e.setCfg(t, ex)
+	if err := e.sup.StartExecutor("e1"); err != nil {
+		t.Fatalf("启动失败：%v", err)
+	}
+	waitFor(t, "状态 Failed", func() bool { return e.snapshotOf(t, "e1").State == StateFailed })
+
+	var crash *eventEntry
+	for _, ev := range e.readEvents(t) {
+		if ev.Type == "executor_crash" {
+			cp := ev
+			crash = &cp
+		}
+	}
+	if crash == nil {
+		t.Fatal("应记录崩溃事件")
+	}
+	if crash.Restart == nil || *crash.Restart {
+		t.Fatalf("不拉起崩溃应记录 restart=false：%+v", crash)
+	}
+	if crash.LogFile != "e1.log" {
+		t.Fatalf("崩溃事件应携带日志文件标识：%+v", crash)
 	}
 }

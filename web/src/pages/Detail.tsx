@@ -1,14 +1,16 @@
 // Detail.tsx：执行器详情页（F4）。状态摘要条（双状态/pid/uptime/重启）+
 // 日志查看器（LogViewer 组件）+ 结构化编辑表单（字段同 CLI edit；token
 // 掩码+眼睛；保存 PUT + Toast；运行中提示需 restart）。
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { t } from '../i18n'
 import {
-  getExecutor, apiFetch, getToken, type ExecutorView,
+  getExecutor, getLogPage, apiFetch, getToken, type ExecutorView, type TimelineCrash,
 } from '../api'
 import { StatusDot, localStateKind, localStateText, platformKind, platformText } from '../components/StatusDot'
-import { LogViewer } from '../components/LogViewer'
+import { LogViewer, type LogJump } from '../components/LogViewer'
+import { Timeline } from '../components/Timeline'
+import { fmtLocal } from '../time'
 import { ToastProvider, useToast } from '../components/Toast'
 
 function fmtUptime(ms: number): string {
@@ -38,6 +40,8 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
   const [form, setForm] = useState<EditForm | null>(null)
   const [showToken, setShowToken] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [jump, setJump] = useState<LogJump | null>(null)
+  const jumpSeq = useRef(0)
 
   const refresh = () => {
     getExecutor(name, onUnauthorized)
@@ -87,6 +91,31 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
     }
   }
 
+  // 时间带崩溃点穿透：可定位 → 该时刻前最后一页历史日志；否则加载最近页并降级提示。
+  const locateCrash = async (crash: TimelineCrash) => {
+    try {
+      if (crash.locatable && crash.log_file) {
+        const page = await getLogPage(
+          name,
+          { file: crash.log_file, before: crash.log_offset ?? 0, limit: 500 },
+          onUnauthorized,
+        )
+        jumpSeq.current += 1
+        setJump({
+          seq: jumpSeq.current,
+          lines: page.lines,
+          notice: t.timeline.located(fmtLocal(crash.at)),
+        })
+      } else {
+        const page = await getLogPage(name, { tail: 500 }, onUnauthorized)
+        jumpSeq.current += 1
+        setJump({ seq: jumpSeq.current, lines: page.lines, notice: t.timeline.degrade })
+      }
+    } catch (e) {
+      toast((e as Error).message, 'error')
+    }
+  }
+
   if (error) return <div className="awem-page"><div className="awem-error-text">{error}</div></div>
   if (!view || !form) {
     return (
@@ -127,6 +156,10 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
           <span className="awem-pill warn" title={view.drift.message}>{t.status.drift} {view.drift.fields.length}</span>
         ) : null}
       </div>
+
+      {/* 运行时间带（24h，events.log 重放；崩溃点穿透日志） */}
+      <Timeline name={view.name} onUnauthorized={onUnauthorized} onLocate={locateCrash} />
+
       {view.drift && view.drift.fields.length > 0 ? (
         <div className="awem-card" style={{ paddingTop: 12, paddingBottom: 12 }}>
           {view.drift.fields.map((f) => (
@@ -141,7 +174,7 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
       {/* 日志查看器（暗底恒定） */}
       <div className="awem-card">
         <h2 className="awem-card-title">日志</h2>
-        <LogViewer name={view.name} token={getToken()} />
+        <LogViewer name={view.name} token={getToken()} jump={jump} />
       </div>
 
       {/* 结构化编辑表单 */}

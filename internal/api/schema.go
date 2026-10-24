@@ -59,12 +59,13 @@ type localView struct {
 }
 
 type platformView struct {
-	Status        string `json:"status"` // ONLINE/BUSY/OFFLINE/unreachable/unowned
-	LastHeartbeat string `json:"last_heartbeat,omitempty"`
-	Name          string `json:"name,omitempty"`       // 平台侧执行器名（接入中文名）
-	AgentName     string `json:"agent_name,omitempty"` // 所属数字工人中文名
-	Project       string `json:"project,omitempty"`    // 所属项目（工作空间）名
-	Squad         string `json:"squad,omitempty"`      // 所属小队名
+	Status        string   `json:"status"` // ONLINE/BUSY/OFFLINE/unreachable/unowned
+	LastHeartbeat string   `json:"last_heartbeat,omitempty"`
+	Name          string   `json:"name,omitempty"`       // 平台侧执行器名（接入中文名）
+	AgentName     string   `json:"agent_name,omitempty"` // 所属数字工人中文名
+	Project       string   `json:"project,omitempty"`    // 所属项目（工作空间）名
+	Squad         string   `json:"squad,omitempty"`      // 所属小队名（顿号拼接，列表列兼容）
+	SquadNames    []string `json:"squad_names"`          // 所属小队数组（树形分组用；空为 []）
 }
 
 // driftView 是漂移信息（null=无漂移或未联动；文案按 design #9）。
@@ -122,15 +123,20 @@ func (s *Server) buildExecutorView(e config.Executor) executorView {
 	}
 	// 平台状态与漂移（联动启用后注入；未联动/未命中为 null 占位）
 	if v.Parsed != nil {
-	if ps, ok := s.opts.Plat.Lookup(v.Parsed.ExecutorID); ok {
-		v.Platform = &platformView{
-			Status:        ps.State,
-			LastHeartbeat: formatTime(ps.LastHeartbeat),
-			Name:          ps.Name,
-			AgentName:     ps.AgentName,
-			Project:       ps.Project,
-			Squad:         ps.Squad,
-		}
+		if ps, ok := s.opts.Plat.Lookup(v.Parsed.ExecutorID); ok {
+			squadNames := ps.SquadNames
+			if squadNames == nil {
+				squadNames = []string{}
+			}
+			v.Platform = &platformView{
+				Status:        ps.State,
+				LastHeartbeat: formatTime(ps.LastHeartbeat),
+				Name:          ps.Name,
+				AgentName:     ps.AgentName,
+				Project:       ps.Project,
+				Squad:         ps.Squad,
+				SquadNames:    squadNames,
+			}
 			if len(ps.Drift) > 0 {
 				v.Drift = driftView{
 					Fields:  ps.Drift,

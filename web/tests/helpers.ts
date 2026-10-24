@@ -81,6 +81,12 @@ export async function gotoOverview(page: Page) {
   await expect(page.getByRole('heading', { name: '总览' })).toBeVisible()
 }
 
+/** 打开执行器详情页并等待标题（标识名）。 */
+export async function gotoDetail(page: Page, name: string) {
+  await page.goto(`/executors/${encodeURIComponent(name)}`)
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+}
+
 /** 在页面加载前写入本机 token，跳过登录卡片。 */
 export async function injectToken(page: Page) {
   await page.addInitScript(() => localStorage.setItem('awem-token', 'test-token'))

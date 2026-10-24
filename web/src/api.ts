@@ -95,7 +95,8 @@ export interface PlatformInfo {
   name?: string // 平台侧执行器名（接入时的中文名）
   agent_name?: string // 所属数字工人中文名
   project?: string // 所属项目（工作空间）名
-  squad?: string // 所属小队名
+  squad?: string // 所属小队名（顿号拼接，列表列兼容）
+  squad_names?: string[] // 所属小队数组（树形分组用；旧服务端可能缺失）
 }
 
 export interface DriftInfo {
@@ -139,3 +140,60 @@ export const putSettings = (body: unknown, on401?: () => void) =>
   apiFetch<SettingsView>('/api/settings', { method: 'PUT', body: JSON.stringify(body) }, on401)
 export const platformHealth = (on401?: () => void) =>
   apiFetch<{ configured: boolean; ok: boolean | null; detail: string }>('/api/platform/health', {}, on401)
+
+// --- 运行时间带（一期） ---
+
+export interface TimelineSegment {
+  from: string
+  to: string
+  state: string // running / backoff / stopped / nodata
+}
+
+export interface TimelineCrash {
+  at: string
+  log_file?: string
+  log_offset?: number
+  auto_restart: boolean
+  locatable: boolean
+}
+
+export interface TimelineView {
+  name: string
+  from: string
+  to: string
+  data_start: string | null
+  data_end: string | null
+  segments: TimelineSegment[]
+  crashes: TimelineCrash[]
+}
+
+export const getTimeline = (name: string, from: string, to: string, on401?: () => void) => {
+  const q = new URLSearchParams({ from, to })
+  return apiFetch<TimelineView>(
+    `/api/stats/executors/${encodeURIComponent(name)}/timeline?${q.toString()}`,
+    {},
+    on401,
+  )
+}
+
+export interface LogPage {
+  lines: string[]
+  tail?: number
+  start_file?: string
+  start_offset?: number
+  has_more?: boolean
+}
+
+/** 日志读取：默认尾部 tail；带 file/before/limit 时按定位信息读取历史页。 */
+export const getLogPage = (
+  name: string,
+  params: { tail?: number; file?: string; before?: number; limit?: number },
+  on401?: () => void,
+) => {
+  const q = new URLSearchParams()
+  if (params.tail !== undefined) q.set('tail', String(params.tail))
+  if (params.file) q.set('file', params.file)
+  if (params.before !== undefined) q.set('before', String(params.before))
+  if (params.limit !== undefined) q.set('limit', String(params.limit))
+  return apiFetch<LogPage>(`/api/executors/${encodeURIComponent(name)}/log?${q.toString()}`, {}, on401)
+}

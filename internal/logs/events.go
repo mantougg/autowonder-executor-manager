@@ -31,10 +31,13 @@ const (
 
 // Event 是一条管理事件（JSONL 一行）。
 type Event struct {
-	Time     time.Time `json:"time"`               // 事件时间
-	Type     EventType `json:"type"`               // 事件类型
-	Executor string    `json:"executor,omitempty"` // 相关执行器（可空）
-	Detail   string    `json:"detail,omitempty"`   // 详情（可空）
+	Time      time.Time `json:"time"`                 // 事件时间
+	Type      EventType `json:"type"`                 // 事件类型
+	Executor  string    `json:"executor,omitempty"`   // 相关执行器（可空）
+	Detail    string    `json:"detail,omitempty"`     // 详情（可空）
+	Restart   *bool     `json:"restart,omitempty"`    // executor_crash：是否将自动拉起（nil=旧事件，按 detail 兼容）
+	LogFile   string    `json:"log_file,omitempty"`   // executor_crash：日志文件标识（该执行器日志链内，如 name.log.2）
+	LogOffset int64     `json:"log_offset,omitempty"` // executor_crash：崩溃时日志文件字节偏移（定位用）
 }
 
 // EventLog 是事件日志写入器（内部复用 LogSink，天然线程安全 + 滚动）。
@@ -53,7 +56,15 @@ func OpenEventLog(path string, maxBytes int64, keep int) (*EventLog, error) {
 
 // Record 追加一条事件（JSONL）。
 func (e *EventLog) Record(typ EventType, executor, detail string) error {
-	ev := Event{Time: time.Now(), Type: typ, Executor: executor, Detail: detail}
+	return e.RecordEvent(Event{Type: typ, Executor: executor, Detail: detail})
+}
+
+// RecordEvent 追加一条完整事件（Time 为零时填当前时刻）。
+// 增量字段（restart/log_file/log_offset）只增不改，旧读取方忽略即可。
+func (e *EventLog) RecordEvent(ev Event) error {
+	if ev.Time.IsZero() {
+		ev.Time = time.Now()
+	}
 	data, err := json.Marshal(ev)
 	if err != nil {
 		return err

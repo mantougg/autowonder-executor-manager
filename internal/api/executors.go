@@ -342,7 +342,12 @@ func (s *Server) handleAction(fn func(string) error) http.HandlerFunc {
 	}
 }
 
-// handleLog GET /api/executors/{name}/log?tail=N（非流式；流式走 /ws/logs/{name}）。
+// handleLog GET /api/executors/{name}/log（非流式；流式走 /ws/logs/{name}）。
+//
+// 两种读取方式：
+//   - 默认 tail=N：当前日志文件尾部 N 行（旧契约不变）；
+//   - file=&before=&limit=：按崩溃事件定位信息读取该执行器日志链中 before
+//     字节之前的历史页（跨滚动文件向前补齐，防路径穿越）。
 func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	cfg0 := s.currentConfig()
@@ -350,8 +355,52 @@ func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {
 		handleAPIError(w, notFound("执行器 "+name+" 不存在"))
 		return
 	}
+	q := r.URL.Query()
+	file := q.Get("file")
+	beforeS := q.Get("before")
+	if file != "" || beforeS != "" {
+		if file == "" {
+			handleAPIError(w, badRequest("file 必填（按定位信息读取日志）"))
+			return
+		}
+		if beforeS == "" {
+			handleAPIError(w, badRequest("before 必填（日志字节偏移）"))
+			return
+		}
+		before, err := strconv.ParseInt(beforeS, 10, 64)
+		if err != nil || before < 0 {
+			handleAPIError(w, badRequest("before 必须为非负整数（字节偏移）"))
+			return
+		}
+		limit := 500
+		if v := q.Get("limit"); v != "" {
+			n, err := strconv.Atoi(v)
+			if err != nil || n <= 0 || n > 2000 {
+				handleAPIError(w, badRequest("limit 必须为 1-2000 的整数"))
+				return
+			}
+			limit = n
+		}
+		if !s.opts.Logs.ValidExecutorLogFile(name, file) {
+			handleAPIError(w, badRequest("file 不在该执行器日志链内："+file))
+			return
+		}
+		lines, startFile, startOffset, hasMore, err := s.opts.Logs.ReadBefore(name, file, before, limit)
+		if err != nil {
+			handleAPIError(w, internalErr(err))
+			return
+		}
+		if lines == nil {
+			lines = []string{}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"name": name, "file": file, "lines": lines,
+			"start_file": startFile, "start_offset": startOffset, "has_more": hasMore,
+		})
+		return
+	}
 	tail := 50
-	if v := r.URL.Query().Get("tail"); v != "" {
+	if v := q.Get("tail"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n <= 0 {
 			handleAPIError(w, badRequest("tail 必须为正整数"))

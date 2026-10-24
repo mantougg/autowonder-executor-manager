@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:baseline": "playwright test --grep @baseline",
-    "test:e2e:batch": "playwright test --grep @batch"
+    "test:e2e:batch": "playwright test --grep @batch",
+    "test:e2e:views": "playwright test --grep @views",
+    "test:e2e:timeline": "playwright test --grep @timeline"
   },
   "dependencies": {
     "lucide-react": "^0.469.0",
