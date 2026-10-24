@@ -23,7 +23,7 @@
 | 编号 | 子任务 | 前置依赖 | 功能点进度（已检查/总数） | 子任务状态 | 文档 |
 |---|---|---|---|---|---|
 | T01 | 工程骨架与构建基础 | — | 5/5 | ✅ 已检查 | [t01-project-scaffold.md](t01-project-scaffold.md) |
-| T02 | 配置与存储 | T01 | 3/6 | 🔄 进行中 | [t02-config-storage.md](t02-config-storage.md) |
+| T02 | 配置与存储 | T01 | 4/6 | 🔄 进行中 | [t02-config-storage.md](t02-config-storage.md) |
 | T03 | 启动命令解析与导入 | T01 | 0/6 | ⬜ 未开始 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
 | T04 | 日志系统 | T01、T02 | 0/6 | ⬜ 未开始 | [t04-logging.md](t04-logging.md) |
 | T05 | Supervisor 进程守护 | T02、T03、T04 | 0/7 | ⬜ 未开始 | [t05-supervisor.md](t05-supervisor.md) |
@@ -70,3 +70,4 @@
 | 2026-10-24 | T02-F2 ✅ | config.toml 模型与读写（BurntSushi/toml），单测通过（2/6） |
 | 2026-10-24 | T02-F3 🔄 部分 | 配置校验（name/bind/非空）完成；命令字段校验待 T03 解析器（预授权路径） |
 | 2026-10-24 | T02-F4 ✅ | 配置热加载（fsnotify+去抖），单测通过（3/6） |
+| 2026-10-25 | T02-F5 ✅ | api-token 生成/复用/权限，单测通过（4/6） |
