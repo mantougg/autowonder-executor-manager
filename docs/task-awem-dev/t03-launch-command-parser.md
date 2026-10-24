@@ -27,8 +27,8 @@
 
 ### F2 · 结构化字段解析
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：从 connect 参数解析出 §5.3 全部已知字段：`--ws-url`、`--token`、`--executor-id`、`--provider`、`--model`、`--reasoning-effort`、`--context-window`、`--memory-mode`、`--max-tasks`、布尔 `--token-aware-enable`、`--debug`；未知 flag 进 passthrough 列表（**保序**）。校验：executor-id 数字、token 非空、provider 枚举（qoder/qodercn/claude/codex）；错误逐字段定位（哪个 flag、什么问题）。
 - **验收要点**：
   - 单测覆盖每个字段正常/缺失/非法三种情况；
@@ -83,6 +83,7 @@
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
 | 2026-10-25 | F1 | ✅ | 实跑 `go test ./internal/launchcmd/ -v` 5 用例全 PASS：单/双引号包裹空格、引号内另一引号、双引号转义 `\`"`、裸转义空格、相邻引号成一词（拆词与 shell 语义一致）；未闭合引号报错；版本提取（0.3.22）；nohup 叠加与尾部 & 剥离；7 种非法前缀（非 npx/无版本/@空/缺 connect/其他包/不支持 npx 参数/空命令）均返回 UnsupportedCommandError |
+| 2026-10-25 | F2 | ✅ | 实跑 `go test ./internal/launchcmd/ -run 'Parse|Validate' -v` 全 PASS：全字段命令解析结果深比较相等且 Validate 通过；`--flag=value` 与 `--flag value` 两形式等价；布尔 flag 纯式/`=false`/`=true`/非法值；未知 flag（--future-flag=v1、--another 42、裸词）完整保序进 passthrough；末尾缺值与"值位置是另一个 flag"均逐 flag 定位；executor-id 非数字/缺失、token 空、provider 非法/缺失各自报对应中文错误，2 项问题聚合计数 |
 
 ## 变更记录
 
@@ -92,3 +93,5 @@
 | 2026-10-25 | 开工 ⬜→🔄 | 无人值守会话（T02 ⏸️ 转 T03，完成后回填 T02-F3） |
 | 2026-10-25 | F1 选型：包装剥离规则 | 剥离规则：**前导 nohup（可叠加）+ 尾部 &**；npx 与包名间仅允许 `-y/--yes`，其余 npx 参数（如 --silent）报"不支持的命令"而非静默丢弃；`autowonder` 必须带 `@<版本>`。未闭合引号/悬挂反斜杠在 tokenize 层报错 |
 | 2026-10-25 | F1 ✅ | Tokenize + parsePrefix（版本提取、包装容忍、结构化 UnsupportedCommandError）单测通过 |
+| 2026-10-25 | F2 选型：解析/校验分层 | 语法层问题（缺值、布尔带值、未知裸词）解析时报 FieldErrors（逐 flag 定位）；语义层三规则（executor-id 数字 / token 非空 / provider 枚举且须显式）由 `Validate()` 单独报，便于编辑场景区分"结构坏了"与"值不合法"。重复已知 flag 后者覆盖前者；值位置出现 `-` 开头的词按缺值报错（token 等值实际不含横线前缀）；多余裸词进 passthrough 保序 |
+| 2026-10-25 | F2 ✅ | Parsed 结构 + Parse/Validate，全字段/两形式/保序单测通过 |
