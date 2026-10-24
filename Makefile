@@ -1,7 +1,9 @@
 # awem 构建工作流。
-# 版本注入：make build VERSION=v0.1.0（默认 0.0.0-dev；发布流程见 T11）。
+# 版本注入：make build VERSION=v0.1.0；缺省自动取 git describe（如
+# v0.1.0-2-g1a2b3c4，无 git 或无 tag 的环境回退 0.0.0-dev）——本地开发
+# 构建的 daemon 横幅也显示真实版本。发布流程见 T11（显式传 VERSION）。
 
-VERSION ?= 0.0.0-dev
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.0.0-dev)
 BINARY  := awem
 LDFLAGS := -X awem/internal/version.Version=$(VERSION)
 
