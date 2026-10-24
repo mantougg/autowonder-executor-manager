@@ -84,8 +84,8 @@
 
 ### F8 · import
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：`awem import [--file <旧脚本>] [--with-logs]`：默认路径 `~/executor-manager.sh`？——**实施时与用户确认常见路径**（先支持 `--file`，缺省找当前目录与家目录的 `executor-manager.sh`，规则记录）；解析（T03 F4）→ 逐条展示导入预览（名称映射/改名建议）→ 确认 → 批量 add；`--with-logs` 归档旧日志（T03 F5）；`--json` 输出汇总（导入成功/失败/改名明细）。名称冲突（含导入条目之间）处理策略：后缀去重建议 + 确认。
 - **验收要点**：
   - 用真实模板样例做集成测试：含中文名（走改名确认）、坏行（跳过并报告）；
@@ -119,6 +119,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F8 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestImport -count=1`：TestImport预览确认与落盘（拒绝不落盘；确认后 2 条落盘——中文名 NO1需求澄清 改名 exec-30001、ascii-exec 直入；占位符行跳过且预览报告）、TestImportWithLogs归档（旧布局日志按旧名→新名归档到 data/logs/executors/exec-30001.log，内容一致；汇总"拷贝 1 条"）、TestImportJSON汇总（--json 无 --yes → 2；--yes 输出纯 JSON，renamed/imported 状态与 detail 正确）、TestImport找不到脚本（退出码 2）。注：开发中发现测试环境 HomeDir 注入遗漏导致归档误读本机真实 ~/.autowonder-executor 历史日志（未写坏任何真实文件，拷贝只读源），修复注入后全过。 |
 | 2026-10-25 | F7 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestLog -count=1`：TestLog尾部行数（tail=3 恰好 行8-10；默认 100 含全部；--lines=abc → 2）、TestLog空态与不存在（暂无日志提示、nope → 3）、TestLogJSON结构化行数组（lines 数组 + tail 字段）、TestLog跟随收到新行并干净退出（真 WS：backlog 行2 → 400ms 后写入跟随新行X 实时收到 → 主动停止返回 nil，无错误无泄漏）。 |
 | 2026-10-25 | F6 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestRemove -count=1`：TestRemove确认与落盘（n 取消配置保留、y 删除、--yes 跳过、不存在 3）、TestRemovePurge与日志保留（不带 purge 日志文件保留；--purge 文件删除断言）、TestRemove运行中先停后删（确认文案含"将先停止其进程"、结果"已停止进程"、删除后无残留 pid；拒绝后进程仍 running）。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F5 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestEdit -count=1`：TestEdit单字段与命令重建（--model dfmodel --reasoning-effort low → 命令重建、--token-aware-enable 与原 token 保留）、TestEdit布尔与autostart（--debug 追加、--no-autostart 生效、--debug=false 移除 flag）、TestEdit整条替换与坏命令（替换生效；not-a-command → 退出码 2 且原配置字节不变；不存在 → 3；无修改项 → 2）、TestEdit运行中提示restart（"下次 restart 后生效"）。 |
@@ -133,6 +134,7 @@
 |---|---|---|
 | 2026-10-24 | 创建 | 由任务计划生成 |
 | 2026-10-25 | 开工 | 子任务状态 ⬜→🔄；fakeproc 从两处 testdata 提为 internal/fakeproc 共享包（supervisor/api/cli 三处测试 TestMain 统一构建）；daemon.Client 导出 NewClientAt（测试直连）；APIError 退出码映射补充 invalid_command/invalid_name/bad_request/invalid_config→2（用法错）；cli 包新增 Deps 依赖注入（Layout/Connect/In/Out）与 RegisterCommands 装配骨架 |
+| 2026-10-25 | F8 实现 + 决策记录 | **缺省脚本路径**：当前目录 ./executor-manager.sh → 家目录 ~/executor-manager.sh（都无则报错并指引 --file；任务要求"与用户确认常见路径"，无人值守会话按模板默认名取此二处，记录待用户复核）。**归档源**：~/\.autowonder-executor/<旧名>.log（design §15 旧布局约定；家目录经 Deps.HomeDir 注入可测）。**--json 决策**：--json 无 --yes → 用法错误（脚本消费不接受交互）；--json 输出 {"script","results":[{name,status:imported/renamed/failed,detail}],"logs":[归档结果]}，人读输出全部抑制。预览：✓ 直入 / ~ 改名（原名→建议名 exec-<id>）/ ✗ 坏行（占位符等，跳过并报告）。 |
 | 2026-10-25 | F7 实现 | **--lines 默认 100**（决策记录）；-f 经 /ws/logs/{name}（daemon.Client 新增 FollowLogs：query token 鉴权、LogEvent 信封、onEvent 返回 false 主动停止=Ctrl-C 等价）；非流式走 GET …/log?tail=N；空日志中文空态；行原样输出（ANSI 保留）；--json 非流式输出 {"lines":[],"tail":N}。 |
 | 2026-10-25 | F6 实现 | 确认文案按状态组装（运行中→"将先停止其进程"；--purge→"删除全部本地日志"；恒带"不可恢复"）；运行中自动带 stop=true（API 先停后删）；--purge 映射 purge=true；结果汇报已停止/日志已清除。 |
 | 2026-10-25 | F5 实现 | 字段 flag 全集：model/reasoning-effort/context-window/memory-mode/max-tasks/token/ws-url/executor-id/provider/runtime-version + 布尔 autostart[=bool]/restart[=bool]/debug[=bool] + workspace-root + --command 整条替换；值 flag 支持 --x v 与 --x=v 两种形态；服务端重建命令（passthrough 与未提交 token 不丢）；运行中（running/backoff/stopping）提示"下次 restart 后生效"；输出展示新命令全文。 |

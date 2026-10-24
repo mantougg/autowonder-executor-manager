@@ -49,6 +49,7 @@ type cliEnv struct {
 	mgr    *logs.Manager
 	sup    *supervisor.Supervisor
 	server *httptest.Server
+	home   string // 注入的家目录（import 归档用）
 }
 
 // newCLIEnv 构造环境；execs 为预置执行器（走 API 等价的落盘+发布路径）。
@@ -93,6 +94,10 @@ func newCLIEnv(t *testing.T, execs ...config.Executor) *cliEnv {
 	env := &cliEnv{
 		reg: NewRegistry(), out: &bytes.Buffer{},
 		p: p, mgr: mgr, sup: sup, server: server,
+		home: filepath.Join(dir, "home"),
+	}
+	if err := os.MkdirAll(env.home, 0o755); err != nil {
+		t.Fatal(err)
 	}
 	t.Cleanup(env.resetStdin)
 	RegisterCommands(env.reg, Deps{
@@ -100,8 +105,9 @@ func newCLIEnv(t *testing.T, execs ...config.Executor) *cliEnv {
 		Connect: func(context.Context) (*daemon.Client, error) {
 			return daemon.NewClientAt(server.URL, "cli-test-token"), nil
 		},
-		In:  env, // 实现 io.Reader：每次 run 前重置（见 resetStdin/Run）
-		Out: env.out,
+		In:      env, // 实现 io.Reader：每次 run 前重置（见 resetStdin/Run）
+		Out:     env.out,
+		HomeDir: func() (string, error) { return env.home, nil },
 	})
 	return env
 }

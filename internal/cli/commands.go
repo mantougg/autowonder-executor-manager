@@ -23,6 +23,7 @@ type Deps struct {
 	Connect func(ctx context.Context) (*daemon.Client, error) // API 连接（默认 daemon.Connect 惰性拉起）
 	In      io.Reader                                         // 确认交互输入（默认 os.Stdin）
 	Out     io.Writer                                         // 正常输出（默认 os.Stdout）
+	HomeDir func() (string, error)                            // 家目录（import 归档旧布局用；默认 os.UserHomeDir）
 }
 
 // DefaultDeps 返回生产依赖。
@@ -56,6 +57,9 @@ func RegisterCommands(r *Registry, d Deps) {
 	if d.Out == nil {
 		d.Out = os.Stdout
 	}
+	if d.HomeDir == nil {
+		d.HomeDir = os.UserHomeDir
+	}
 	reg := func(c *Command) { r.Register(c) }
 	reg(cmdAdd(d))
 	reg(cmdList(d))
@@ -66,7 +70,8 @@ func RegisterCommands(r *Registry, d Deps) {
 	reg(cmdEdit(d))
 	reg(cmdRemove(d))
 	reg(cmdLog(d))
-	// 后续功能点逐个注册：import/doctor/reload
+	reg(cmdImport(d))
+	// 后续功能点逐个注册：doctor/reload
 }
 
 // printf 向 Deps.Out 输出。

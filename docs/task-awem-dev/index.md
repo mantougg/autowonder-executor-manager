@@ -28,7 +28,7 @@
 | T04 | 日志系统 | T01、T02 | 6/6 | ✅ 已检查 | [t04-logging.md](t04-logging.md) |
 | T05 | Supervisor 进程守护 | T02、T03、T04 | 7/7 | ✅ 已检查 | [t05-supervisor.md](t05-supervisor.md) |
 | T06 | daemon 与本地 API | T02、T04、T05 | 7/7 | ✅ 已检查 | [t06-daemon-api.md](t06-daemon-api.md) |
-| T07 | CLI 子命令集 | T03、T05、T06 | 7/10 | 🔄 进行中 | [t07-cli.md](t07-cli.md) |
+| T07 | CLI 子命令集 | T03、T05、T06 | 8/10 | 🔄 进行中 | [t07-cli.md](t07-cli.md) |
 | T08 | 平台状态联动（只读） | T02、T03、T06 | 0/6 | ⬜ 未开始 | [t08-platform-sync.md](t08-platform-sync.md) |
 | T09 | Web SPA | T03、T06、T08 | 0/8 | ⬜ 未开始 | [t09-web-spa.md](t09-web-spa.md) |
 | T10 | 系统服务与跨平台专项 | T06、T07 | 0/6 | ⬜ 未开始 | [t10-service-cross-platform.md](t10-service-cross-platform.md) |
@@ -111,3 +111,4 @@
 | 2026-10-25 | T07-F5 ✅ | awem edit：字段直改/整条替换/布尔开关/运行中提示（41/71） |
 | 2026-10-25 | T07-F6 ✅ | awem remove：确认交互/先停后删/purge 日志清理（42/71） |
 | 2026-10-25 | T07-F7 ✅ | awem log：tail/空态/--json/WS 跟随干净退出（43/71） |
+| 2026-10-25 | T07-F8 ✅ | awem import：预览/改名确认/批量导入/--with-logs 归档/--json 汇总（44/71） |
