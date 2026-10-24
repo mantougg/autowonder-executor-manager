@@ -3,6 +3,8 @@ package config
 import (
 	"strings"
 	"testing"
+
+	"awem/internal/launchcmd"
 )
 
 // validExec 构造一条合法执行器配置。
@@ -67,17 +69,52 @@ func Test校验逐条报告(t *testing.T) {
 	}
 }
 
-// Test名称字符集边界 合法边界字符与典型非法字符。
+// Test名称字符集边界 合法边界字符与典型非法字符（规则同源 launchcmd.ValidExecutorName）。
 func Test名称字符集边界(t *testing.T) {
 	for _, ok := range []string{"a", "A1", "a.b_c-d", "10086", ".hidden", "e-1.2_3"} {
-		if !nameAllowed(ok) {
+		if !launchcmd.ValidExecutorName(ok) {
 			t.Fatalf("%q 应为合法 name", ok)
 		}
 	}
 	for _, bad := range []string{"", "中文名", "a b", "a/b", `a\b`, "a;b", "a|b", "名字*"} {
-		if nameAllowed(bad) {
+		if launchcmd.ValidExecutorName(bad) {
 			t.Fatalf("%q 应为非法 name", bad)
 		}
+	}
+}
+
+// Test命令字段深度校验 §5.3：executor-id 数字 / token 非空 / provider 枚举（T03 解析器接入后补齐）。
+func Test命令字段深度校验(t *testing.T) {
+	base := "npx -y autowonder@0.3.22 connect --ws-url ws://h --token t --executor-id 1 --provider qoder"
+	cases := []struct {
+		name    string
+		command string
+		wantErr string
+	}{
+		{"executor-id非数字", strings.Replace(base, "--executor-id 1", "--executor-id abc", 1), "--executor-id"},
+		{"token为空", strings.Replace(base, "--token t", `--token ""`, 1), "--token"},
+		{"provider非法", strings.Replace(base, "--provider qoder", "--provider gpt", 1), "--provider"},
+		{"provider缺失", strings.Replace(base, "--provider qoder", "", 1), "--provider"},
+		{"命令不可解析", "docker run -d nginx", "无法解析"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := Default()
+			cfg.Executors = []Executor{{Name: "e1", Command: c.command}}
+			err := cfg.Validate()
+			if err == nil {
+				t.Fatal("应报错")
+			}
+			if !strings.Contains(err.Error(), c.wantErr) || !strings.Contains(err.Error(), "e1") {
+				t.Fatalf("错误应含条目定位 e1 与 %q：\n%s", c.wantErr, err)
+			}
+		})
+	}
+	// 合法完整命令通过
+	cfg := Default()
+	cfg.Executors = []Executor{{Name: "e1", Command: base}}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("合法命令不应报错：%v", err)
 	}
 }
 

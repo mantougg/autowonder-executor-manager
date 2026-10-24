@@ -1,6 +1,6 @@
 # awem 开发任务索引（task-awem-dev）
 
-- **总任务状态**：🔄 进行中 —— 1/11 子任务已检查，5/71 功能点已检查
+- **总任务状态**：🔄 进行中 —— 3/11 子任务已检查，16/71 功能点已检查
 - **计划依据**：[design.md](../design/design.md)（v1 定稿，2026-10-24）+ [AGENTS.md](../../AGENTS.md)
 - **计划生成**：2026-10-24，拆解为 11 个子任务、71 个功能点
 - **执行方式**：用 `awem-dev` 技能（仓库 `.agents/skills/awem-dev/`）说"继续 awem 开发/执行 T0X/检查 T0X"；或按 [conventions.md](conventions.md) §7–8 的流程手动执行与更新状态。
@@ -23,7 +23,7 @@
 | 编号 | 子任务 | 前置依赖 | 功能点进度（已检查/总数） | 子任务状态 | 文档 |
 |---|---|---|---|---|---|
 | T01 | 工程骨架与构建基础 | — | 5/5 | ✅ 已检查 | [t01-project-scaffold.md](t01-project-scaffold.md) |
-| T02 | 配置与存储 | T01 | 5/6 | ⏸️ 已暂停（F3 待 T03） | [t02-config-storage.md](t02-config-storage.md) |
+| T02 | 配置与存储 | T01 | 6/6 | ✅ 已检查 | [t02-config-storage.md](t02-config-storage.md) |
 | T03 | 启动命令解析与导入 | T01 | 6/6 | ✅ 已检查 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
 | T04 | 日志系统 | T01、T02 | 0/6 | ⬜ 未开始 | [t04-logging.md](t04-logging.md) |
 | T05 | Supervisor 进程守护 | T02、T03、T04 | 0/7 | ⬜ 未开始 | [t05-supervisor.md](t05-supervisor.md) |
@@ -79,3 +79,4 @@
 | 2026-10-25 | T03-F4 ✅ | 旧脚本 import 解析（真实 fixture），单测通过（4/6） |
 | 2026-10-25 | T03-F5 ✅ | 旧日志归档准备，单测通过（5/6） |
 | 2026-10-25 | T03-F6 ✅ + 子任务 ✅ | 测试矩阵收口（覆盖率 92.7%）；T03 全部 6 功能点 ✅，已推送 |
+| 2026-10-25 | T02-F3 ✅ + 子任务 ✅ | F3 命令字段校验经 T03 解析器回填完成；T02 6/6 ✅（16/71） |

@@ -1,6 +1,6 @@
 # T02 · 配置与存储
 
-- **子任务状态**：⏸️ 已暂停（2026-10-25：F1/F2/F4/F5/F6 已 ✅；仅剩 F3 的命令字段深度校验依赖 T03 启动命令解析器，按本文件预授权路径延期。恢复前提：T03 解析器完成 → 接入 Validate → F3 整点验收 → 子任务 ✅）
+- **子任务状态**：✅ 已检查（2026-10-25 F3 回填完成，6/6 功能点自检通过）
 - **前置依赖**：T01
 - **设计依据**：[design.md](../design/design.md) §5（数据模型与配置）、§10（安全）、D8（命名规则）
 - **产物范围**：`internal/config/`、data 目录布局、api-token 与 daemon.json 读写
@@ -38,8 +38,8 @@
 
 ### F3 · 配置校验
 
-- **开发状态**：🔄 进行中（部分：name 唯一性/字符集、bind 仅 127.0.0.1、port 范围、command 非空已实现并通过单测；**命令字段深度校验（executor-id 数字 / token 非空 / provider 白名单）待 T03 解析器完成后接入**，走本文件预授权的"先只做 name 唯一性"路径）
-- **检查状态**：⬜ 未检查（待命令字段校验补齐后整点验收）
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检，命令字段深度校验于 T03 完成后回填）
 - **开发描述**：加载时校验（§5.3/D8）：name 全局唯一且字符集 `[a-zA-Z0-9._-]`；command 能被解析出 `executor-id`（数字）与 `token`（非空）；`provider ∈ {qoder, qodercn, claude, codex}`；`bind` 仅 127.0.0.1。命令字段解析调用 T03 的解析器（T03 未完成前可先只做 name 唯一性，其余待 T03 后补齐——若走此路径须在本文件登记）。校验失败逐条报告（哪一条 executor、什么问题），不允许半份配置生效。
 - **验收要点**：
   - 单测覆盖：重名、非法字符名（含中文名）、executor-id 非数字、token 为空、provider 非法、bind 非 127.0.0.1，各自报对应中文错误；
@@ -86,6 +86,7 @@
 | 2026-10-24 | F4 | ✅ | 实跑 `go test ./internal/config/ -run 'Reload|去抖|真实文件' -v` 全 PASS：改文件→订阅者收到 port=200/300 新配置（含真实 fsnotify 端到端，原子替换写法）；坏 TOML 与校验错（bind 0.0.0.0）→ Current 保留旧值 + OnError 收到 2 条事件；150ms 去抖窗内 5 个连续写事件仅重载 1 次、新事件再重载；同目录 .tmp/无关文件事件 0 次重载 |
 | 2026-10-25 | F5 | ✅ | 实跑 `go test ./internal/config/ -run Token -v` 4 用例 PASS：首次生成匹配 `^[0-9a-f]{64}$`（32 字节熵）且两次生成不同、落盘与返回值一致；预置 token 二次读取原样复用不重生成；非 Windows 断言文件权限 0600；空文件触发生成。`GOOS=windows go build ./...` 通过（icacls 分支存在） |
 | 2026-10-25 | F6 | ✅ | 实跑 `go test ./internal/config/ -run DaemonInfo -v` 3 用例 PASS：写当前 pid→读出存活且值相等→清理后无文件且重复清理 no-op；pid=4194300 判定 stale（running=false 但记录可读）；非 JSON 损坏文件读取不报错、按无 daemon 处理且文件自愈删除（pid=0 同）。`GOOS=windows/darwin go build` 均通过 |
+| 2026-10-25 | F3 | ✅ | 实跑 `go test ./internal/config/ -run '校验|名称|端口|命令字段' -v` 全 PASS：重名、非法字符名（含中文）、bind 非 127.0.0.1、port 越界、空 command 各报对应中文错误且错误含条目定位（name 出现在信息中）；命令字段深度校验 5 场景（executor-id 非数字 / token 空 / provider 非法与缺失 / 命令不可解析）均报错且含定位 e1；合法完整命令通过；名称字符集边界 7 合法 + 9 非法 |
 
 ## 变更记录
 
@@ -103,3 +104,4 @@
 | 2026-10-25 | F5 ✅ | `config.APIToken`：crypto/rand 32 字节→64 hex、0600、复用不重生成；Windows 走 icacls 分支（token_windows.go，真机验证记 T10） |
 | 2026-10-25 | F6 ✅ | DaemonInfo 写/读/清理 + pid 存活探测（unix kill0 / windows OpenProcess）+ 损坏文件自愈 |
 | 2026-10-25 | 子任务 ⏸️ | F1/F2/F4/F5/F6 已 ✅；F3 命令字段校验待 T03 解析器（预授权路径），T03 完成后恢复收尾 |
+| 2026-10-25 | F3 回填完成 ✅ | T03 解析器（launchcmd.Parse/Validate）接入 config.Validate：命令字段深度校验（executor-id 数字/token 非空/provider 枚举/命令可解析）逐条目报告；名称规则改用 launchcmd.ValidExecutorName 同源（删除本地重复实现）。恢复 ⏸️→F3 ✅→子任务 ✅ |

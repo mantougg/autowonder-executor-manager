@@ -1,28 +1,14 @@
 // validate.go 加载时配置校验（design.md §5.3 / D8）。
-// 命令字段深度校验（executor-id 数字 / token 非空 / provider 白名单）
-// 依赖 T03 的启动命令解析器，待其完成后接入 Validate（已登记 T02 变更记录）。
+// 名称规则与命令字段校验复用 internal/launchcmd（T03 解析器），
+// 保证"配置校验"与"命令解析"两处规则同源。
 package config
 
 import (
 	"fmt"
 	"strings"
-)
 
-// nameAllowed 报告 name 是否符合 D8 字符集 [a-zA-Z0-9._-]。
-func nameAllowed(name string) bool {
-	if name == "" {
-		return false
-	}
-	for _, r := range name {
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
-		case r == '.' || r == '_' || r == '-':
-		default:
-			return false
-		}
-	}
-	return true
-}
+	"awem/internal/launchcmd"
+)
 
 // Validate 校验整个配置；失败时逐条报告（条目定位 + 中文错误），
 // 返回的 error 聚合全部问题（不允许半份配置生效）。
@@ -45,15 +31,25 @@ func (c *Config) Validate() error {
 		switch {
 		case e.Name == "":
 			errs = append(errs, loc+"：name 不能为空")
-		case !nameAllowed(e.Name):
+		case !launchcmd.ValidExecutorName(e.Name):
 			errs = append(errs, loc+"：name 含非法字符，只允许 [a-zA-Z0-9._-]（中文名不支持，D8：用于文件名与 CLI 参数安全）")
 		case seen[e.Name]:
 			errs = append(errs, loc+"：name 与其他执行器重复（须全局唯一）")
 		default:
 			seen[e.Name] = true
 		}
-		if strings.TrimSpace(e.Command) == "" {
+
+		switch {
+		case strings.TrimSpace(e.Command) == "":
 			errs = append(errs, loc+"：command 不能为空")
+		default:
+			// 命令字段深度校验（§5.3）：executor-id 数字 / token 非空 / provider 枚举
+			p, err := launchcmd.Parse(e.Command)
+			if err != nil {
+				errs = append(errs, loc+"：command 无法解析（"+err.Error()+"）")
+			} else if verr := p.Validate(); verr != nil {
+				errs = append(errs, loc+"：command 校验不通过（"+verr.Error()+"）")
+			}
 		}
 	}
 
