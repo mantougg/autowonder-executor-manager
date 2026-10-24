@@ -24,7 +24,7 @@
 |---|---|---|---|---|---|
 | T01 | 工程骨架与构建基础 | — | 5/5 | ✅ 已检查 | [t01-project-scaffold.md](t01-project-scaffold.md) |
 | T02 | 配置与存储 | T01 | 5/6 | ⏸️ 已暂停（F3 待 T03） | [t02-config-storage.md](t02-config-storage.md) |
-| T03 | 启动命令解析与导入 | T01 | 0/6 | ⬜ 未开始 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
+| T03 | 启动命令解析与导入 | T01 | 1/6 | 🔄 进行中 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
 | T04 | 日志系统 | T01、T02 | 0/6 | ⬜ 未开始 | [t04-logging.md](t04-logging.md) |
 | T05 | Supervisor 进程守护 | T02、T03、T04 | 0/7 | ⬜ 未开始 | [t05-supervisor.md](t05-supervisor.md) |
 | T06 | daemon 与本地 API | T02、T04、T05 | 0/7 | ⬜ 未开始 | [t06-daemon-api.md](t06-daemon-api.md) |
@@ -72,3 +72,5 @@
 | 2026-10-24 | T02-F4 ✅ | 配置热加载（fsnotify+去抖），单测通过（3/6） |
 | 2026-10-25 | T02-F5 ✅ | api-token 生成/复用/权限，单测通过（4/6） |
 | 2026-10-25 | T02-F6 ✅ + ⏸️ | daemon.json 读写/stale/自愈通过（5/6）；子任务暂停待 T03 补 F3 命令字段校验 |
+| 2026-10-25 | T03 开工 | 子任务状态 ⬜→🔄（T02 ⏸️ 转入） |
+| 2026-10-25 | T03-F1 ✅ | 拆词与前缀识别，单测通过（1/6） |
