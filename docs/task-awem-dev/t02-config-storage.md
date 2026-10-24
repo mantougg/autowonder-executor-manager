@@ -38,8 +38,8 @@
 
 ### F3 · 配置校验
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🔄 进行中（部分：name 唯一性/字符集、bind 仅 127.0.0.1、port 范围、command 非空已实现并通过单测；**命令字段深度校验（executor-id 数字 / token 非空 / provider 白名单）待 T03 解析器完成后接入**，走本文件预授权的"先只做 name 唯一性"路径）
+- **检查状态**：⬜ 未检查（待命令字段校验补齐后整点验收）
 - **开发描述**：加载时校验（§5.3/D8）：name 全局唯一且字符集 `[a-zA-Z0-9._-]`；command 能被解析出 `executor-id`（数字）与 `token`（非空）；`provider ∈ {qoder, qodercn, claude, codex}`；`bind` 仅 127.0.0.1。命令字段解析调用 T03 的解析器（T03 未完成前可先只做 name 唯一性，其余待 T03 后补齐——若走此路径须在本文件登记）。校验失败逐条报告（哪一条 executor、什么问题），不允许半份配置生效。
 - **验收要点**：
   - 单测覆盖：重名、非法字符名（含中文名）、executor-id 非数字、token 为空、provider 非法、bind 非 127.0.0.1，各自报对应中文错误；
@@ -94,3 +94,4 @@
 | 2026-10-24 | F2 选型：TOML 库 | **BurntSushi/toml v1.6.0**（读解析，成熟稳定、ParseError 自带行号）；**写入用手写序列化 `MarshalTOML`** 而非库 Encoder——需要中文节注释头、executor 缩进与字段全量落盘（roundtrip 稳定），Encoder 无法插入注释。Save 走临时文件+原子替换。依赖经 goproxy.cn 拉取（proxy.golang.org 网络不可达，已 `go env -w GOPROXY=https://goproxy.cn,direct`） |
 | 2026-10-24 | F2 选型：restart.enabled 语义 | `*bool` 区分"未配置"与"显式关闭"：未配置默认开启（design 决策 3"崩溃自动拉起…可关"→默认开），读入时归一化为非 nil，写回恒定全量字段 |
 | 2026-10-24 | F2 ✅ | 模型 + Load/Save/MarshalTOML，roundtrip/默认值/错误定位单测通过 |
+| 2026-10-24 | F3 部分完成 🔄 | 已实现：name 唯一性、D8 字符集 `[a-zA-Z0-9._-]`（中文/空格/符号均报错）、bind 仅 127.0.0.1、port 范围、command 非空，逐条聚合报告含条目定位。**延期项（按本文件预授权路径登记）**：executor-id 数字 / token 非空 / provider ∈ {qoder,qodercn,claude,codex} 的校验依赖 T03 启动命令解析器，避免重复实现两套解析；T03 完成后回来接入并整点验收 |

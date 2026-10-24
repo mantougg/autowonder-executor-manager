@@ -21,7 +21,7 @@ func sampleConfig() Config {
 	c.Log = LogConfig{MaxSizeMB: 30, RetentionDays: 3}
 	c.Executors = []Executor{
 		{
-			Name:      "需求澄清",
+			Name:      "no1-clarify",
 			Command:   `npx -y autowonder@0.3.22 connect --ws-url ws://h/ws --token "t k" --executor-id 10086 --provider qoder --model qfmodel`,
 			Autostart: true,
 			Restart:   RestartPolicy{Enabled: BoolPtr(true), Backoff: "exponential"},
@@ -139,9 +139,10 @@ func Test保存为可读格式(t *testing.T) {
 			t.Fatalf("输出缺少 %q：\n%s", want, out)
 		}
 	}
-	// 中文与特殊字符必须被正确转义/保留
-	if !strings.Contains(out, `需求澄清`) {
-		t.Fatalf("中文名丢失：\n%s", out)
+	// 中文与特殊字符必须被正确转义/保留（name 按 D8 只允许 [a-zA-Z0-9._-]，
+	// 中文出现在 token 等值字段验证转义能力）
+	if !strings.Contains(out, `no1-clarify`) {
+		t.Fatalf("name 丢失：\n%s", out)
 	}
 	if !strings.Contains(out, `\"引号\"`) {
 		t.Fatalf("引号未转义：\n%s", out)
