@@ -58,13 +58,21 @@ func RegisterCommands(r *Registry, d Deps) {
 	}
 	reg := func(c *Command) { r.Register(c) }
 	reg(cmdAdd(d))
-	// 后续功能点逐个注册：list/status/start/stop/restart/edit/remove/log/import/doctor/reload
+	reg(cmdList(d))
+	// 后续功能点逐个注册：status/start/stop/restart/edit/remove/log/import/doctor/reload
 }
 
 // printf 向 Deps.Out 输出。
 func (d Deps) printf(format string, args ...any) {
 	fmt.Fprintf(d.Out, format, args...)
 }
+
+// out 返回输出目标（tabwriter 等需要 io.Writer 的场合）。
+func (d Deps) out() io.Writer { return d.Out }
+
+// usagef/generalf 是 exitcode 构造器的薄包装（子命令文件统一入口）。
+func usagef(format string, args ...any) error { return exitcode.Usagef(format, args...) }
+func generalf(format string, args ...any) error { return exitcode.Generalf(format, args...) }
 
 // confirm 交互确认：prompt 以"…[y/N]"结尾时输入 y/Y/是 才算确认。
 // 测试通过注入 d.In 驱动。
