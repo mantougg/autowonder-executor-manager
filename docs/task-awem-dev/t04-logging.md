@@ -55,8 +55,8 @@
 
 ### F5 · --debug 透传支持
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：执行器配置中的 debug 开关（来自 T03 解析的 `--debug`）在日志层可查询（供 T05 spawn 时附加参数）；`awem add` 时的提示文案数据（上游文档警告：debug 的 rotated 诊断日志长跑占磁盘，默认关）放到事件/文档层提示。本功能点主要是把开关贯通到日志与事件（记录"某执行器以 debug 启动"事件）。
 - **验收要点**：
   - 单测：debug=true 的执行器启动事件含 debug 标记；
@@ -85,6 +85,7 @@
 | 2026-10-25 | F2 | ✅ | 实跑 `go test ./internal/logs/ -run 滚动 -v` 3 用例 PASS：960 字节写入（maxBytes=100）产生 .1/.2/.3 且无 .4（keep 淘汰生效）、当前文件回到阈值内；keep=200 无淘汰时 500 行跨多次滚动总数守恒 500（滚动瞬间不丢行）；滚动全程对 Writer 透明（20 次写入含滚动全成功、内容合计完整） |
 | 2026-10-25 | F3 | ✅ | 实跑 `go test ./internal/logs/ -run 清理 -v` 2 用例 PASS：os.Chtimes 注入 mtime（8 天前/1 天前），7 天保留下恰删 3 个过期滚动文件（e1.log.1/.2、events.log.1），活动文件与未过期滚动文件与无关文件留存；onRemove 回调次数与删除数一致（清理事件）；目录不存在静默空返回、days<=0 默认 7 天删 30 天前文件 |
 | 2026-10-25 | F4 | ✅ | 实跑 `go test ./internal/logs/ -run '事件|MaskSecret' -v` 4 用例 PASS：写 2 事件读回 JSONL 逐行 json.Unmarshal 成功、type/executor/detail 字段齐、time 合理、空 executor omitempty；11 个事件类型常量覆盖 §11 场景（启停/崩溃/重启/配置加载成功与失败/变更/服务安装/清理/daemon 启停）；事件日志超阈值滚动产生 .1；MaskSecret 6 组边界（空/短/长令牌保留前4后4） |
+| 2026-10-25 | F5 | ✅ | 实跑 `go test ./internal/logs/ -run Debug -v` 2 用例 PASS：RecordExecutorStart(e, true) 事件 JSONL 含 "debug=true" 与磁盘提示、(e, false) 无 debug 标记；DebugEnabled 对带/不带 --debug 命令与不可解析命令分别返回 true/false/false |
 
 ## 变更记录
 
@@ -100,3 +101,5 @@
 | 2026-10-25 | F3 ✅ | CleanupExpired 单测（mtime 注入、只删过期、事件回调）通过 |
 | 2026-10-25 | F4 选型：JSONL + 复用 LogSink | 事件格式 JSONL（一行一事件：time/type/executor/detail，程序可解析、人可 grep、追加适配滚动）；EventLog 内部复用 LogSink（线程安全+滚动白得），滚动参数与执行器日志共用（事件量小，取简单方案）。附 MaskSecret 掩码助手（conventions §5 敏感令牌不回显） |
 | 2026-10-25 | F4 ✅ | EventLog + EventType 枚举 + MaskSecret，单测通过 |
+| 2026-10-25 | F5 ✅ | RecordExecutorStart（debug 标记）+ DebugEnabled（命令查询，供 T05 spawn） |
+| 2026-10-25 | F5 ✅（检查） | debug 启动事件含标记与磁盘提示、默认 false 无标记；命令查询 3 场景 |
