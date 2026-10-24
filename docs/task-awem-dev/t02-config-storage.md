@@ -1,6 +1,6 @@
 # T02 · 配置与存储
 
-- **子任务状态**：⬜ 未开始
+- **子任务状态**：🔄 进行中（2026-10-24 开工，无人值守会话）
 - **前置依赖**：T01
 - **设计依据**：[design.md](../design/design.md) §5（数据模型与配置）、§10（安全）、D8（命名规则）
 - **产物范围**：`internal/config/`、data 目录布局、api-token 与 daemon.json 读写
@@ -18,8 +18,8 @@
 
 ### F1 · 配置目录与 data 布局
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-24 自检）
 - **开发描述**：按 §5.1 用 `os.UserConfigDir()` 定位根目录 `awem/`（Linux `~/.config/awem/`、macOS `~/Library/Application Support/awem/`、Windows `%AppData%\awem\`），创建 `config.toml`（不存在则写默认模板）与 `data/logs/executors/` 目录树；目录权限 0700。提供单一入口（如 `config.Paths()`）供全项目取路径，禁止散落拼路径。
 - **验收要点**：
   - 三平台路径符合 §5.1 表（单测可注入假 UserConfigDir 覆盖拼接逻辑）；
@@ -81,10 +81,12 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-10-24 | F1 | ✅ | 实跑 `go test ./internal/config/ -v` 3 用例 PASS：Layout 注入假目录断言 8 条路径；Linux 下 XDG_CONFIG_HOME 覆盖验证 Root=$XDG/awem（其余平台根目录由 os.UserConfigDir 标准库承担，§5.1 三平台表对应）；EnsureDir 创建 4 级目录树 + 默认 config.toml（中文注释头）、目录权限 0700 断言、二次调用不覆盖用户配置 |
 
 ## 变更记录
 
 | 日期 | 动作 | 说明 |
 |---|---|---|
 | 2026-10-24 | 创建 | 由任务计划生成 |
+| 2026-10-24 | 开工 ⬜→🔄 | 无人值守开发会话继续（T01 完成后） |
+| 2026-10-24 | F1 ✅ | `config.Layout/DefaultLayout/EnsureDir`（路径单一入口）+ 默认模板，权限/幂等单测通过 |

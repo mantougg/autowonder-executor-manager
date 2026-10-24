@@ -23,7 +23,7 @@
 | 编号 | 子任务 | 前置依赖 | 功能点进度（已检查/总数） | 子任务状态 | 文档 |
 |---|---|---|---|---|---|
 | T01 | 工程骨架与构建基础 | — | 5/5 | ✅ 已检查 | [t01-project-scaffold.md](t01-project-scaffold.md) |
-| T02 | 配置与存储 | T01 | 0/6 | ⬜ 未开始 | [t02-config-storage.md](t02-config-storage.md) |
+| T02 | 配置与存储 | T01 | 1/6 | 🔄 进行中 | [t02-config-storage.md](t02-config-storage.md) |
 | T03 | 启动命令解析与导入 | T01 | 0/6 | ⬜ 未开始 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
 | T04 | 日志系统 | T01、T02 | 0/6 | ⬜ 未开始 | [t04-logging.md](t04-logging.md) |
 | T05 | Supervisor 进程守护 | T02、T03、T04 | 0/7 | ⬜ 未开始 | [t05-supervisor.md](t05-supervisor.md) |
@@ -65,3 +65,5 @@
 | 2026-10-24 | T01-F3 ✅ | 退出码常量与错误分类（internal/exitcode），验收通过（3/5） |
 | 2026-10-24 | T01-F4 ✅ | Makefile 与 README 开发者快速开始，验收通过（4/5） |
 | 2026-10-24 | T01-F5 ✅ + 子任务 ✅ | go:embed 静态资源骨架验收通过；T01 全部 5 功能点 ✅，子任务完成（5/5），已推送 |
+| 2026-10-24 | T02 开工 | 子任务状态 ⬜→🔄 |
+| 2026-10-24 | T02-F1 ✅ | 配置目录与 data 布局，单测通过（1/6） |
