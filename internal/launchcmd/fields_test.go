@@ -30,6 +30,7 @@ func TestParse全字段(t *testing.T) {
 		MemoryMode:      "platform",
 		MaxTasks:        "5",
 		TokenAware:      true,
+		Passthrough:     []string{}, // 恒非 nil（JSON 契约：[] 而非 null）
 	}
 	if !reflect.DeepEqual(*p, want) {
 		t.Fatalf("解析结果不符：\n got=%+v\nwant=%+v", *p, want)

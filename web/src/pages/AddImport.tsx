@@ -100,7 +100,7 @@ function AddInner({ onUnauthorized }: { onUnauthorized: () => void }) {
               <span>executor-id <span className="mono" style={{ background: 'var(--awem-bg-muted)', padding: '2px 6px', borderRadius: 6, color: 'var(--awem-accent)' }}>{p.executor_id}</span></span>
               <span>model <span className="mono" style={{ background: 'var(--awem-bg-muted)', padding: '2px 6px', borderRadius: 6, color: 'var(--awem-accent)' }}>{p.model || '—'}</span></span>
               <span>token <span className="mono" style={{ background: 'var(--awem-bg-muted)', padding: '2px 6px', borderRadius: 6, color: 'var(--awem-accent)' }}>{p.token}</span>（掩码）</span>
-              <span className="awem-hint">provider {p.provider} · autowonder@{p.runtime_version}{p.passthrough.length > 0 ? ` · 未知 flag 保留 ${p.passthrough.length} 个` : ''}</span>
+              <span className="awem-hint">provider {p.provider} · autowonder@{p.runtime_version}{p.passthrough && p.passthrough.length > 0 ? ` · 未知 flag 保留 ${p.passthrough.length} 个` : ''}</span>
             </div>
             <div className="awem-field" style={{ maxWidth: 320 }}>
               <label>名称（[a-zA-Z0-9._-]）</label>

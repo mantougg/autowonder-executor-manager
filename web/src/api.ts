@@ -86,7 +86,7 @@ export interface ExecutorParsed {
   max_tasks: string
   token_aware: boolean
   debug: boolean
-  passthrough: string[]
+  passthrough: string[] | null // v0.1.0 服务端曾对无未知 flag 输出 null，消费方须判空
 }
 
 export interface PlatformInfo {

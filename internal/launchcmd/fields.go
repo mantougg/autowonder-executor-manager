@@ -59,7 +59,9 @@ func Parse(cmd string) (*Parsed, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &Parsed{Prefix: prefix}
+	// Passthrough 恒非 nil：JSON 序列化为 [] 而非 null（parsed.passthrough 契约；
+	// v0.1.0 曾因 null 导致 Web 详情页 .length 崩溃）
+	p := &Parsed{Prefix: prefix, Passthrough: []string{}}
 	var issues FieldErrors
 
 	for i := 0; i < len(rest); i++ {

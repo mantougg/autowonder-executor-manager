@@ -186,7 +186,7 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
         {p ? (
           <div className="awem-hint" style={{ marginBottom: 12 }}>
             只读：executor-id {p.executor_id} · provider {p.provider} · autowonder@{p.runtime_version}
-            {p.passthrough.length > 0 ? ` · 未知 flag 将保留（${p.passthrough.length} 个）` : ''}
+            {p.passthrough && p.passthrough.length > 0 ? ` · 未知 flag 将保留（${p.passthrough.length} 个）` : ''}
           </div>
         ) : null}
         <button className="awem-btn awem-btn-primary" onClick={save} disabled={saving}>

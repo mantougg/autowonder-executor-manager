@@ -234,6 +234,27 @@ func TestAPI单条404(t *testing.T) {
 	}
 }
 
+// TestAPIpassthrough空数组契约：无未知 flag 时 parsed.passthrough 必须是 []
+// 而非 null（v0.1.0 曾因 null 使 Web 详情页/AddImport 预览 .length 崩溃白屏）。
+func TestAPIpassthrough空数组契约(t *testing.T) {
+	e := newEnvWithExecs(t, config.Executor{
+		Name: "e1", Command: validCommand,
+		Restart: config.RestartPolicy{Enabled: config.BoolPtr(true), Backoff: "exponential"},
+	})
+	for _, path := range []string{"/api/executors", "/api/executors/e1"} {
+		code, body := e.do(t, http.MethodGet, path, "")
+		if code != http.StatusOK {
+			t.Fatalf("%s 应 200，实际 %d %s", path, code, body)
+		}
+		if strings.Contains(body, `"passthrough":null`) {
+			t.Fatalf("%s：passthrough 序列化为 null，违反 [] 契约", path)
+		}
+		if !strings.Contains(body, `"passthrough":[]`) {
+			t.Fatalf("%s：应含 \"passthrough\":[]，body=%s", path, body)
+		}
+	}
+}
+
 // --- F3 验收：add 全链路 + 错误路径 ---
 
 func TestAPIadd全链路(t *testing.T) {
