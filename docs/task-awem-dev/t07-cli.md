@@ -94,8 +94,8 @@
 
 ### F9 · doctor
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：环境体检（design §8.1）：Node ≥ 20（qoder/qodercn 要求）、`npx` 可用、`qoder`/`qodercn` CLI 存在（按将用的 provider 检查）、磁盘剩余空间（数据目录）、平台连通（**T08 完成前此项输出"未实现/跳过"占位，T08 F6 补全**）；逐项 ✅/❌ + 修复建议（中文）；任一 ❌ 退出码 1。
 - **验收要点**：
   - 本机运行输出全部检查项；构造缺失（PATH 里去掉 npx）→ ❌ 且退出码 1；
@@ -119,6 +119,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F9 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestDoctor -count=1`：TestDoctor本机全项输出（5 项全列出、平台连通 — 占位、结尾"全部通过"、退出码 0）、TestDoctor缺失npx退出码1（注入 LookPath 全失败 → ❌ + 建议 + 退出 1）、TestDoctorNode版本过低（注入 v16.20.0 → "版本过低" + 退出 1）、TestDoctor按Provider检查CLI（配置 qoder 执行器且注入 qoder 缺失 → "缺少 qoder" + 退出 1）、TestDoctorJSON输出（--json 纯数组 5 项、平台连通 Skipped=true）。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F8 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestImport -count=1`：TestImport预览确认与落盘（拒绝不落盘；确认后 2 条落盘——中文名 NO1需求澄清 改名 exec-30001、ascii-exec 直入；占位符行跳过且预览报告）、TestImportWithLogs归档（旧布局日志按旧名→新名归档到 data/logs/executors/exec-30001.log，内容一致；汇总"拷贝 1 条"）、TestImportJSON汇总（--json 无 --yes → 2；--yes 输出纯 JSON，renamed/imported 状态与 detail 正确）、TestImport找不到脚本（退出码 2）。注：开发中发现测试环境 HomeDir 注入遗漏导致归档误读本机真实 ~/.autowonder-executor 历史日志（未写坏任何真实文件，拷贝只读源），修复注入后全过。 |
 | 2026-10-25 | F7 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestLog -count=1`：TestLog尾部行数（tail=3 恰好 行8-10；默认 100 含全部；--lines=abc → 2）、TestLog空态与不存在（暂无日志提示、nope → 3）、TestLogJSON结构化行数组（lines 数组 + tail 字段）、TestLog跟随收到新行并干净退出（真 WS：backlog 行2 → 400ms 后写入跟随新行X 实时收到 → 主动停止返回 nil，无错误无泄漏）。 |
 | 2026-10-25 | F6 | ✅ 通过 | 实跑 `go test ./internal/cli/ -run TestRemove -count=1`：TestRemove确认与落盘（n 取消配置保留、y 删除、--yes 跳过、不存在 3）、TestRemovePurge与日志保留（不带 purge 日志文件保留；--purge 文件删除断言）、TestRemove运行中先停后删（确认文案含"将先停止其进程"、结果"已停止进程"、删除后无残留 pid；拒绝后进程仍 running）。全仓三绿 + 交叉编译。 |
@@ -134,6 +135,7 @@
 |---|---|---|
 | 2026-10-24 | 创建 | 由任务计划生成 |
 | 2026-10-25 | 开工 | 子任务状态 ⬜→🔄；fakeproc 从两处 testdata 提为 internal/fakeproc 共享包（supervisor/api/cli 三处测试 TestMain 统一构建）；daemon.Client 导出 NewClientAt（测试直连）；APIError 退出码映射补充 invalid_command/invalid_name/bad_request/invalid_config→2（用法错）；cli 包新增 Deps 依赖注入（Layout/Connect/In/Out）与 RegisterCommands 装配骨架 |
+| 2026-10-25 | F9 实现 | 5 检查项：Node ≥ 20（node --version 解析主版本）、npx（Windows 查 npx.cmd）、provider CLI（按当前配置执行器的 provider 集合查 qoder/qodercn；无此类执行器→跳过说明；claude/codex 不需本地预装）、磁盘剩余（数据目录，阈值 1GB；Unix statfs / Windows GetDiskFreeSpaceEx，经 x/sys）、平台连通（T08 前恒跳过占位不误报）。逐项 ✅/❌/— + 中文修复建议；任一 ❌ 退出码 1；--json 输出纯数组（人读行抑制）。环境注入点 doctorEnv（测试替换 LookPath/命令执行/磁盘探测）。 |
 | 2026-10-25 | F8 实现 + 决策记录 | **缺省脚本路径**：当前目录 ./executor-manager.sh → 家目录 ~/executor-manager.sh（都无则报错并指引 --file；任务要求"与用户确认常见路径"，无人值守会话按模板默认名取此二处，记录待用户复核）。**归档源**：~/\.autowonder-executor/<旧名>.log（design §15 旧布局约定；家目录经 Deps.HomeDir 注入可测）。**--json 决策**：--json 无 --yes → 用法错误（脚本消费不接受交互）；--json 输出 {"script","results":[{name,status:imported/renamed/failed,detail}],"logs":[归档结果]}，人读输出全部抑制。预览：✓ 直入 / ~ 改名（原名→建议名 exec-<id>）/ ✗ 坏行（占位符等，跳过并报告）。 |
 | 2026-10-25 | F7 实现 | **--lines 默认 100**（决策记录）；-f 经 /ws/logs/{name}（daemon.Client 新增 FollowLogs：query token 鉴权、LogEvent 信封、onEvent 返回 false 主动停止=Ctrl-C 等价）；非流式走 GET …/log?tail=N；空日志中文空态；行原样输出（ANSI 保留）；--json 非流式输出 {"lines":[],"tail":N}。 |
 | 2026-10-25 | F6 实现 | 确认文案按状态组装（运行中→"将先停止其进程"；--purge→"删除全部本地日志"；恒带"不可恢复"）；运行中自动带 stop=true（API 先停后删）；--purge 映射 purge=true；结果汇报已停止/日志已清除。 |
