@@ -1,6 +1,6 @@
 # T09 · Web SPA
 
-- **子任务状态**：🔄 进行中
+- **子任务状态**：✅ 已检查
 - **前置依赖**：T03（解析预览，经 API）、T06（REST/WS/鉴权）、T08（平台状态列与漂移数据；可先行开发本地部分，双状态列的平台列后接）
 - **设计依据**：[design.md](../design/design.md) §9（Web UI）、决策 #6/#10、D5（中文+语言包预留）；**视觉与交互全按 [ui-guidelines.md](../design/ui-guidelines.md)**
 - **产物范围**：`web/`（React SPA 源码 + 构建链 + go:embed 接线）
@@ -85,8 +85,8 @@
 
 ### F8 · 构建链与 embed 接线
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：`web/` 构建（vite build → `web/dist/`）→ go:embed 接线（替换 T01 占位页）；Makefile `make build` 一条命令产出含 SPA 的单二进制；SPA 路由 fallback（T06 F7）回归确认；构建产物体积关注（轻量快速原则，目标选定记录，如 gzip 后首屏 JS < 200KB）。
 - **验收要点**：
   - `make build` 后单二进制启动，浏览器完成登录 → 全页面可用；
