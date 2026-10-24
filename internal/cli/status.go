@@ -78,7 +78,14 @@ type statusDetail struct {
 		Status        string `json:"status"`
 		LastHeartbeat string `json:"last_heartbeat"`
 	} `json:"platform"`
-	Drift any `json:"drift"`
+	Drift *struct {
+		Fields []struct {
+			Field  string `json:"field"`
+			Local  string `json:"local"`
+			Remote string `json:"remote"`
+		} `json:"fields"`
+		Message string `json:"message"`
+	} `json:"drift"`
 }
 
 // printStatusDetail 输出单个执行器详情。
@@ -107,9 +114,16 @@ func (d Deps) printStatusDetail(e statusDetail) {
 	if e.Platform != nil {
 		d.printf("  平台状态：%s（心跳 %s）\n", e.Platform.Status, orDash(e.Platform.LastHeartbeat))
 	} else {
-		d.printf("  平台状态：—（未配置 [platform] 联动，T08）\n")
+		d.printf("  平台状态：—（未配置 [platform] 联动）\n")
 	}
-	d.printf("  配置漂移：—（T08 检测）\n")
+	if e.Drift != nil && len(e.Drift.Fields) > 0 {
+		d.printf("  配置漂移：⚠ 与平台不一致 %d 项（%s）\n", len(e.Drift.Fields), e.Drift.Message)
+		for _, f := range e.Drift.Fields {
+			d.printf("    --%s：本地 %q vs 平台 %q\n", f.Field, f.Local, f.Remote)
+		}
+	} else {
+		d.printf("  配置漂移：无（或未联动）\n")
+	}
 }
 
 // formatMS 毫秒时长转人读格式。

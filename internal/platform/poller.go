@@ -113,6 +113,8 @@ func (s *Service) Refresh(ctx context.Context) error {
 
 	s.mu.Lock()
 	s.failCount = 0 // 成功清零（与入口无关保持一致）
+	ok := true
+	s.lastOK = &ok
 	for id := range locals {
 		if e, ok := remote[id]; ok {
 			s.status[id] = Status{State: e.Status, LastHeartbeat: e.LastHeartbeat}
@@ -136,6 +138,8 @@ func (s *Service) markUnreachable() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.failCount++
+	failed := false
+	s.lastOK = &failed
 	for id := range s.owner {
 		st := s.status[id]
 		st.State = "unreachable"

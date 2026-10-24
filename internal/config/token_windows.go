@@ -7,8 +7,8 @@ package config
 import (
 	"fmt"
 	"os"
-	"os/user"
 	"os/exec"
+	"os/user"
 )
 
 func restrictTokenFilePerms(path string) error {

@@ -55,13 +55,13 @@ func Test校验逐条报告(t *testing.T) {
 	}
 	msg := err.Error()
 	for _, want := range []string{
-		"bind 仅允许 127.0.0.1",       // bind 非 127.0.0.1
-		"重复",                        // 重名
-		"非法字符",                     // 含中文名
-		"需求澄清",                     // 条目定位含出错 name
-		"bad name!",                 // 条目定位
-		"command 不能为空",              // 空 command
-		"共 5 项问题",                   // 聚合计数（bind 1 + 重复 1 + 中文 1 + 非法 1 + 空 command 1）
+		"bind 仅允许 127.0.0.1", // bind 非 127.0.0.1
+		"重复",                 // 重名
+		"非法字符",               // 含中文名
+		"需求澄清",               // 条目定位含出错 name
+		"bad name!",          // 条目定位
+		"command 不能为空",       // 空 command
+		"共 5 项问题",            // 聚合计数（bind 1 + 重复 1 + 中文 1 + 非法 1 + 空 command 1）
 	} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("错误信息缺少 %q：\n%s", want, msg)

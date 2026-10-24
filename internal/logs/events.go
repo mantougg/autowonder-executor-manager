@@ -26,6 +26,7 @@ const (
 	EventConfigChanged      EventType = "config_changed"       // 配置变更生效
 	EventServiceInstalled   EventType = "service_installed"    // 系统服务安装/卸载
 	EventLogCleanup         EventType = "log_cleanup"          // 保留策略清理
+	EventPlatformSync       EventType = "platform_sync"        // 平台联动事件（跳过/不可达/恢复，T08）
 )
 
 // Event 是一条管理事件（JSONL 一行）。

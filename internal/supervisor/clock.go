@@ -7,7 +7,7 @@ import "time"
 
 // Clock 抽象时间源。
 type Clock interface {
-	Now() time.Time                       // 当前时间（uptime/稳定期判定）
+	Now() time.Time                         // 当前时间（uptime/稳定期判定）
 	After(d time.Duration) <-chan time.Time // 退避等待（d<=0 立即返回）
 }
 

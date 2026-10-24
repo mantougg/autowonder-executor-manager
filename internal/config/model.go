@@ -5,10 +5,10 @@ import "time"
 
 // Config 是 config.toml 的完整模型。
 type Config struct {
-	Server    ServerConfig    `toml:"server"`    // 本地 API 服务
-	Platform  *PlatformConfig `toml:"platform"`  // 平台联动（nil = 整体禁用）
-	Log       LogConfig       `toml:"log"`       // 日志策略
-	Executors []Executor      `toml:"executor"`  // 执行器列表
+	Server    ServerConfig    `toml:"server"`   // 本地 API 服务
+	Platform  *PlatformConfig `toml:"platform"` // 平台联动（nil = 整体禁用）
+	Log       LogConfig       `toml:"log"`      // 日志策略
+	Executors []Executor      `toml:"executor"` // 执行器列表
 }
 
 // ServerConfig 是 [server] 段。Port=0 表示自动挑空闲端口并写回（写回逻辑在 T06）。
@@ -26,7 +26,7 @@ type PlatformConfig struct {
 
 // LogConfig 是 [log] 段。
 type LogConfig struct {
-	MaxSizeMB    int `toml:"max_size_mb"`    // 单文件滚动阈值
+	MaxSizeMB     int `toml:"max_size_mb"`    // 单文件滚动阈值
 	RetentionDays int `toml:"retention_days"` // 保留天数
 }
 

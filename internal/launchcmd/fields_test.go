@@ -19,17 +19,17 @@ func TestParse全字段(t *testing.T) {
 		t.Fatalf("解析失败：%v", err)
 	}
 	want := Parsed{
-		Prefix:         Prefix{RuntimeVersion: "0.3.22"},
-		WSURL:          "ws://10.0.0.1:7001/ws/executor",
-		Token:          "tok-abc",
-		ExecutorID:     "10086",
-		Provider:       "qoder",
-		Model:          "qfmodel",
+		Prefix:          Prefix{RuntimeVersion: "0.3.22"},
+		WSURL:           "ws://10.0.0.1:7001/ws/executor",
+		Token:           "tok-abc",
+		ExecutorID:      "10086",
+		Provider:        "qoder",
+		Model:           "qfmodel",
 		ReasoningEffort: "medium",
-		ContextWindow:  "1000000",
-		MemoryMode:     "platform",
-		MaxTasks:       "5",
-		TokenAware:     true,
+		ContextWindow:   "1000000",
+		MemoryMode:      "platform",
+		MaxTasks:        "5",
+		TokenAware:      true,
 	}
 	if !reflect.DeepEqual(*p, want) {
 		t.Fatalf("解析结果不符：\n got=%+v\nwant=%+v", *p, want)

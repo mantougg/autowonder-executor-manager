@@ -61,7 +61,7 @@ func safeBare(v string) bool {
 	return true
 }
 
-// quoteValue 按需加单引号；内嵌单引号用 '\'' 转义。
+// quoteValue 按需加单引号；内嵌单引号用 '\” 转义。
 func quoteValue(v string) string {
 	if safeBare(v) {
 		return v

@@ -1,9 +1,12 @@
 // ws.go：WebSocket 日志实时流（T06-F4）。
+//
 //	GET /ws/logs/{name}?tail=N&token=<api-token>
+//
 // 升级成功后：先推送尾部 N 行（backlog），再持续推送新行（复用 T04-F6
 // Follow 订阅）；客户端断开即取消订阅并回收（goroutine/文件句柄）。
 //
 // 消息格式（服务端→客户端，JSON 文本帧；契约记入变更记录）：
+//
 //	{"type":"backlog","lines":[...]}   连接后一次性尾部回放
 //	{"type":"line","text":"..."}       此后逐行实时推送
 //	{"type":"error","message":"..."}   出错后随连接关闭
@@ -44,8 +47,8 @@ func (s *Server) wsHandler() http.Handler {
 
 // wsMessage 是 WS 文本帧的统一信封。
 type wsMessage struct {
-	Type    string   `json:"type"`           // backlog / line / error
-	Text    string   `json:"text,omitempty"` // type=line 的行内容
+	Type    string   `json:"type"`            // backlog / line / error
+	Text    string   `json:"text,omitempty"`  // type=line 的行内容
 	Lines   []string `json:"lines,omitempty"` // type=backlog 的尾部回放
 	Message string   `json:"message,omitempty"`
 }

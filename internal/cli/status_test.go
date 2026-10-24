@@ -20,7 +20,7 @@ func TestStatus单个详细(t *testing.T) {
 		t.Fatalf("status 失败：%d %s", code, e.output())
 	}
 	out := e.output()
-	for _, want := range []string{"执行器：s1", "运行状态：running", "pid：", "uptime：", "连接状态：", "执行器 ID：10086", "provider：qoder", "autowonder@0.3.22", "平台状态：—", "配置漂移：—"} {
+	for _, want := range []string{"执行器：s1", "运行状态：running", "pid：", "uptime：", "连接状态：", "执行器 ID：10086", "provider：qoder", "autowonder@0.3.22", "平台状态：—", "配置漂移：无"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("详情应含 %q：\n%s", want, out)
 		}

@@ -40,7 +40,7 @@ func TestValidExecutorName矩阵(t *testing.T) {
 func Test矩阵全场景roundtrip(t *testing.T) {
 	cmds := []string{
 		fullCmd, // 完整命令
-		`npx -y autowonder@0.3.22 connect --ws-url "ws://内网:7001/ws" --token 't k' --executor-id 1 --provider qodercn`, // 引号/空格变形
+		`npx -y autowonder@0.3.22 connect --ws-url "ws://内网:7001/ws" --token 't k' --executor-id 1 --provider qodercn`,        // 引号/空格变形
 		`nohup npx -y autowonder@1.0.0 connect --token t --executor-id 22 --provider claude --model m --token-aware-enable &`, // nohup 包装
 		`npx -y autowonder@1.0.0 connect --executor-id=333 --provider=codex --token=tk --x=1 --y 2 --z`,                       // 等号形式 + 未知 flag
 	}

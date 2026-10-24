@@ -26,13 +26,13 @@ type Watcher struct {
 	path     string
 	debounce time.Duration
 
-	mu      sync.RWMutex
-	cur     Config
-	subs    []func(Config)  // 配置变更订阅者
-	onErr   []func(error)   // 错误事件回调（热加载失败等）
+	mu    sync.RWMutex
+	cur   Config
+	subs  []func(Config) // 配置变更订阅者
+	onErr []func(error)  // 错误事件回调（热加载失败等）
 
-	reloadCount     int // 测试观测用：实际执行重载的次数（含被跳过发布的）
-	publishedCount  int // 测试观测用：实际发布给订阅者的次数
+	reloadCount    int // 测试观测用：实际执行重载的次数（含被跳过发布的）
+	publishedCount int // 测试观测用：实际发布给订阅者的次数
 }
 
 // NewWatcher 创建监视器；initial 为当前内存中的配置（热加载失败的兜底）。

@@ -6,6 +6,7 @@ package platform
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -75,6 +76,7 @@ type Service struct {
 	// 轮询状态（poller.go）
 	failCount       int           // 连续失败次数（成功清零）
 	pendingInterval time.Duration // 下一轮间隔（失败退避后）
+	lastOK          *bool         // 最近一次轮询成败（nil=尚未轮询）
 }
 
 // NewService 创建联动器（禁用时等价 Noop；不启动轮询，Start 由 daemon 调）。
@@ -118,3 +120,33 @@ func (s *Service) Enabled() bool { return s.cfg != nil && s.client != nil }
 func ctxShort(parent context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(parent, 30*time.Second)
 }
+
+// Summary 返回联动健康摘要（daemon 顶栏/doctor 数据源）：
+// configured=false 表示未配置 [platform]（联动禁用）；configured=true 时
+// connected 指示最近一次轮询成败（nil=尚未轮询过）。
+func (s *Service) Summary() (configured bool, connected *bool) {
+	if !s.Enabled() {
+		return false, nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.lastOK == nil {
+		return true, nil
+	}
+	return true, s.lastOK
+}
+
+// Ping 用当前客户端调一次 list_projects（doctor 平台连通检查用；
+// 不修改任何缓存状态）。成功返回 nil。
+func (s *Service) Ping(ctx context.Context) error {
+	if !s.Enabled() {
+		return errNotConfigured
+	}
+	cctx, cancel := ctxShort(ctx)
+	defer cancel()
+	_, err := s.client.ListProjects(cctx)
+	return err
+}
+
+// errNotConfigured 表示平台联动未配置。
+var errNotConfigured = fmt.Errorf("未配置 [platform] 段")

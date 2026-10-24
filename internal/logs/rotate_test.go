@@ -18,7 +18,7 @@ func Test滚动超阈值产生滚动文件(t *testing.T) {
 		t.Fatal(err)
 	}
 	line := "0123456789012345678901\n" // 23+1=24 字节
-	for i := 0; i < 40; i++ {        // 960 字节 → 约 9 次滚动
+	for i := 0; i < 40; i++ {          // 960 字节 → 约 9 次滚动
 		if _, err := s.Write([]byte(line)); err != nil {
 			t.Fatal(err)
 		}

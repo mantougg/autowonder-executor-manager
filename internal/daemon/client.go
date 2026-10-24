@@ -1,7 +1,9 @@
 // client.go：CLI 侧统一连接器（T06-F6）。流程：
+//
 //	读 daemon.json → 探活（任意 HTTP 响应即活）→ 未运行则后台拉起
 //	`awem daemon`（detach，stderr 落 data/logs/daemon.stderr 便于排障）→
 //	轮询等就绪（默认 10s）→ 返回带 token 的 API 客户端。
+//
 // 拉起失败或超时 → 退出码 5 语义错误（exitcode.DaemonNotRunning）+ 中文指引。
 // 并发竞态：多个 CLI 同时拉起时，锁保证只有一个 daemon 存活，其余实例
 // 立即退出，各方轮询端口最终都能拿到可用服务。
@@ -29,8 +31,8 @@ const DefaultReadyTimeout = 10 * time.Second
 // ClientOptions 是 Connect 的可注入项（测试替换拉起与探活）。
 type ClientOptions struct {
 	Paths        config.Paths
-	ReadyTimeout time.Duration   // 就绪等待（0=默认 10s）
-	Launch       func() error    // 拉起 daemon（nil=默认 spawn 自身）
+	ReadyTimeout time.Duration // 就绪等待（0=默认 10s）
+	Launch       func() error  // 拉起 daemon（nil=默认 spawn 自身）
 }
 
 // Client 是本地 API 的 CLI 侧客户端（自动带 token 头）。

@@ -216,10 +216,42 @@ func checkDisk(d Deps, dd doctorDeps) checkItem {
 	return it
 }
 
-// checkPlatform 平台连通（T08 前占位）。
+// checkPlatform 平台连通（T08-F6）：未配置跳过；配置了调一次
+// /api/platform/health（daemon 侧 list_projects 探测）。
 func checkPlatform(d Deps) checkItem {
-	_ = d
-	return checkItem{Name: "平台连通", Skipped: true, Detail: "T08 实现平台轮询后启用"}
+	it := checkItem{Name: "平台连通"}
+	cl, err := d.Connect(context.Background())
+	if err != nil {
+		it.Detail = "daemon 不可达：" + err.Error()
+		it.Advice = "awem daemon 前台运行排查"
+		return it
+	}
+	data, err := cl.GetJSON(context.Background(), "/api/platform/health")
+	if err != nil {
+		it.Detail = "查询失败：" + err.Error()
+		return it
+	}
+	var h struct {
+		Configured bool   `json:"configured"`
+		OK         *bool  `json:"ok"`
+		Detail     string `json:"detail"`
+	}
+	if json.Unmarshal(data, &h) != nil {
+		it.Detail = "响应解析失败"
+		return it
+	}
+	if !h.Configured {
+		return checkItem{Name: it.Name, OK: true, Skipped: true,
+			Detail: "未配置 [platform] 段，跳过（仅本地管理）"}
+	}
+	if h.OK != nil && *h.OK {
+		it.OK = true
+		it.Detail = h.Detail
+		return it
+	}
+	it.Detail = h.Detail
+	it.Advice = "检查 [platform] base_url 与 mcp_token（awem edit 设置或改 config.toml）"
+	return it
 }
 
 // parseMajorVersion 从 v20.11.0 提取 20。

@@ -42,9 +42,9 @@ func KindName(code int) string {
 // Error 是携带退出码的错误。实现 error 与 Unwrap，
 // message 由构造时格式化生成。
 type Error struct {
-	Code int   // 退出码
+	Code int    // 退出码
 	msg  string // 中文错误信息
-	Err  error // 底层原因，可为 nil
+	Err  error  // 底层原因，可为 nil
 }
 
 // Error 实现 error 接口。

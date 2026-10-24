@@ -1,4 +1,5 @@
 // executors.go：执行器资源路由（T06-F3）。
+//
 //	GET    /api/executors                 列表（含本地/平台/漂移视图）
 //	POST   /api/executors                 添加（整条命令，服务端解析+校验）
 //	GET    /api/executors/{name}          单条
@@ -136,11 +137,11 @@ func (s *Server) handleGet(w http.ResponseWriter, r *http.Request) {
 // editRequest PUT /api/executors/{name} 请求体：command 整条替换（优先）
 // 或 fields 字段级编辑（改后服务端重新生成整条命令，未知 flag 不丢）。
 type editRequest struct {
-	Command        string        `json:"command"`
-	Fields         *fieldsPatch  `json:"fields"`
-	Autostart      *bool         `json:"autostart"`
-	WorkspaceRoot  *string       `json:"workspace_root"`
-	RestartEnabled *bool         `json:"restart_enabled"`
+	Command        string       `json:"command"`
+	Fields         *fieldsPatch `json:"fields"`
+	Autostart      *bool        `json:"autostart"`
+	WorkspaceRoot  *string      `json:"workspace_root"`
+	RestartEnabled *bool        `json:"restart_enabled"`
 }
 
 // fieldsPatch 结构化字段补丁：nil=不改；非 nil 字段=设新值（含空串清除，
@@ -174,7 +175,7 @@ func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request) {
 	err := s.mutateConfig(func(c *config.Config) error {
 		e := c.FindExecutor(name)
 		if e == nil {
-			return notFound("执行器 "+name+" 不存在")
+			return notFound("执行器 " + name + " 不存在")
 		}
 		if req.Command != "" {
 			parsed, err := launchcmd.Parse(req.Command)

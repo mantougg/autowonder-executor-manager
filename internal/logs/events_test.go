@@ -99,10 +99,10 @@ func Test事件日志滚动(t *testing.T) {
 // TestMaskSecret 掩码策略。
 func TestMaskSecret(t *testing.T) {
 	cases := map[string]string{
-		"":        "***",
-		"abc":     "***",
-		"abcd":    "***",
-		"abcde":   "ab***",
+		"":                     "***",
+		"abc":                  "***",
+		"abcd":                 "***",
+		"abcde":                "ab***",
 		"executor-token-12345": "exec***2345",
 	}
 	for in, want := range cases {

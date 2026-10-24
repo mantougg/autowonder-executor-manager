@@ -3,14 +3,15 @@
 // 及全部 connect 参数），只识别 -fake-xxx=yyy 形态的控制 flag。
 //
 // 控制_flag（全部用 = 单词形态，避免与 connect 参数的取值语义混淆）：
-//   -fake-mode=run|crash|ignore-term|tree|child|exit-now   （默认 run）
-//   -fake-after=ms        crash 前的存活时长（默认 0）
-//   -fake-exit-code=N     crash/exit-now 的退出码（默认 crash=1 / exit-now=0）
-//   -fake-echo-env=A,B    启动时逐行打印 ENV <name>=<value>（未设置打 <unset>）
-//   -fake-lines=a|b|c     启动时逐行打印（| 分隔），配合 -fake-line-delay=ms
-//   -fake-argv-file=PATH  把收到的 argv 逐行写入文件（透传断言用）
-//   -fake-pidfile=PATH    把自身 pid 写入文件
-//   -fake-child-pidfile=PATH  tree 模式：子进程 pid 写入该文件
+//
+//	-fake-mode=run|crash|ignore-term|tree|child|exit-now   （默认 run）
+//	-fake-after=ms        crash 前的存活时长（默认 0）
+//	-fake-exit-code=N     crash/exit-now 的退出码（默认 crash=1 / exit-now=0）
+//	-fake-echo-env=A,B    启动时逐行打印 ENV <name>=<value>（未设置打 <unset>）
+//	-fake-lines=a|b|c     启动时逐行打印（| 分隔），配合 -fake-line-delay=ms
+//	-fake-argv-file=PATH  把收到的 argv 逐行写入文件（透传断言用）
+//	-fake-pidfile=PATH    把自身 pid 写入文件
+//	-fake-child-pidfile=PATH  tree 模式：子进程 pid 写入该文件
 //
 // 信号语义：run/child/tree 收 SIGTERM/SIGINT 优雅退出（exit 0）；ignore-term
 // 无视 SIGTERM（只能被 SIGKILL 强杀，验证强杀路径）；tree 会再起一个 child

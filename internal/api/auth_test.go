@@ -36,11 +36,11 @@ func TestAuth鉴权与CSRF矩阵(t *testing.T) {
 	const path = "/api/executors"
 
 	cases := []struct {
-		name string
-		host string // 空 = httptest 默认（127.0.0.1）
-		origin string
-		token string
-		want int
+		name     string
+		host     string // 空 = httptest 默认（127.0.0.1）
+		origin   string
+		token    string
+		want     int
 		wantCode string // 空 = 期望 2xx
 	}{
 		{"无token", "", "", "", http.StatusUnauthorized, "unauthorized"},

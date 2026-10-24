@@ -12,7 +12,7 @@ func setupOldLogs(t *testing.T) (string, map[string]string) {
 	t.Helper()
 	dir := t.TempDir()
 	contents := map[string]string{
-		"需求澄清": "旧日志-需求澄清\nline2\n",
+		"需求澄清":      "旧日志-需求澄清\nline2\n",
 		"cli.build": "old log for cli.build\n",
 	}
 	for name, content := range contents {
@@ -29,9 +29,9 @@ func TestArchiveLogs三种情况(t *testing.T) {
 
 	// 改名映射：中文名 → 确认后的新名；cli.build 同名迁移；不存在的条目
 	renames := map[string]string{
-		"需求澄清":  "exec-10086",  // 改名映射
-		"cli.build": "cli.build", // 同名迁移
-		"不存在者":    "exec-99999", // 源缺失
+		"需求澄清":      "exec-10086", // 改名映射
+		"cli.build": "cli.build",  // 同名迁移
+		"不存在者":      "exec-99999", // 源缺失
 	}
 	results, err := ArchiveLogs(srcDir, dstDir, renames)
 	if err != nil {

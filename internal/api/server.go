@@ -7,6 +7,7 @@
 package api
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"net/url"
@@ -23,14 +24,16 @@ import (
 
 // Options 是 Server 的依赖注入（daemon 装配真身，测试注入替身）。
 type Options struct {
-	Paths   config.Paths
-	Token   string        // API 鉴权 token
-	Logs    *logs.Manager // 日志读取（tail/follow）
-	Sup     *supervisor.Supervisor
-	Watcher *config.Watcher // 当前配置 + Reload 发布入口
-	Plat    platform.Syncer // 平台状态（T08 前 Noop）
-	Port    int             // 实际监听端口（/api/status 展示）
-	Version string          // 版本（空=internal/version）
+	Paths          config.Paths
+	Token          string        // API 鉴权 token
+	Logs           *logs.Manager // 日志读取（tail/follow）
+	Sup            *supervisor.Supervisor
+	Watcher        *config.Watcher                 // 当前配置 + Reload 发布入口
+	Plat           platform.Syncer                 // 平台状态联动（Noop=禁用）
+	Ping           func(ctx context.Context) error // 平台连通探测（doctor 用；nil=不支持）
+	PlatConfigured func() bool                     // [platform] 段是否已配置
+	Port           int                             // 实际监听端口（/api/status 展示）
+	Version        string                          // 版本（空=internal/version）
 }
 
 // Server 是本地 API 服务；并发安全（写路径串行化）。

@@ -2,9 +2,9 @@
 
 // daemon_test.go：daemon 生命周期集成冒烟（T06-F1 验收要点）。
 // 用真实编译的二进制跑 `awem daemon`（AWEM_CONFIG_DIR 隔离到临时目录）：
-//   1) 第二个实例拒绝启动且报错含已占端口；
-//   2) 强杀第一个后（锁随进程释放）能重新启动，daemon.json 更新为新 pid；
-//   3) 优雅退出（SIGTERM）后 daemon.json 清理。
+//  1. 第二个实例拒绝启动且报错含已占端口；
+//  2. 强杀第一个后（锁随进程释放）能重新启动，daemon.json 更新为新 pid；
+//  3. 优雅退出（SIGTERM）后 daemon.json 清理。
 package daemon
 
 import (

@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"text/tabwriter"
 )
@@ -51,7 +52,14 @@ type executorBrief struct {
 	Platform *struct {
 		Status string `json:"status"`
 	} `json:"platform"`
-	Drift any `json:"drift"`
+	Drift *struct {
+		Fields []struct {
+			Field  string `json:"field"`
+			Local  string `json:"local"`
+			Remote string `json:"remote"`
+		} `json:"fields"`
+		Message string `json:"message"`
+	} `json:"drift"`
 }
 
 // printList 表格输出；空列表给中文引导。
@@ -77,10 +85,14 @@ func (d Deps) printList(data []byte) error {
 		if e.Platform != nil && e.Platform.Status != "" {
 			platform = e.Platform.Status
 		}
-		writeRow(w, e.Name, e.Local.State, e.Local.Conn, platform, model, boolMark(e.Autostart))
+		drift := "—"
+		if e.Drift != nil && len(e.Drift.Fields) > 0 {
+			drift = fmt.Sprintf("⚠%d", len(e.Drift.Fields))
+		}
+		writeRow(w, e.Name, e.Local.State, e.Local.Conn, platform, drift, model, boolMark(e.Autostart))
 	}
 	_ = w.Flush()
-	d.printf("共 %d 个执行器（平台/漂移联动需配置 [platform] 段，T08）\n", len(out.Executors))
+	d.printf("共 %d 个执行器（漂移标记 ⚠N=与平台不一致 N 项；配置 [platform] 段后显示平台状态）\n", len(out.Executors))
 	return nil
 }
 

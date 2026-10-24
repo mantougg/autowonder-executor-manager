@@ -55,11 +55,11 @@ func newTestSupervisor(mgr *logs.Manager) *supervisor.Supervisor {
 
 // testEnv 聚合一个可测的 API 环境（httptest.Server + 真落盘配置）。
 type testEnv struct {
-	srv  *httptest.Server
-	api  *Server
-	p    config.Paths
-	mgr  *logs.Manager
-	sup  *supervisor.Supervisor
+	srv *httptest.Server
+	api *Server
+	p   config.Paths
+	mgr *logs.Manager
+	sup *supervisor.Supervisor
 }
 
 // newEnvWithExecs 构造环境：预置 execs 到 config.toml 并发布。

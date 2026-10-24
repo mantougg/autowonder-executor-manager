@@ -1,6 +1,6 @@
 # T08 · 平台状态联动（只读）
 
-- **子任务状态**：🔄 进行中
+- **子任务状态**：✅ 已检查
 - **前置依赖**：T02（[platform] 配置）、T03（本地解析字段）、T06（注入 API/状态数据）
 - **设计依据**：[design.md](../design/design.md) §7（平台状态联动）、决策 #2/#9、附录 A（MCP 通道事实）
 - **产物范围**：`internal/platform/`（MCP 只读客户端、归属发现、状态轮询、漂移检测）
@@ -64,8 +64,8 @@
 
 ### F6 · 接入 API/CLI 与 doctor 补全
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：把平台状态与 drift 接进 `GET /api/executors`、`awem list/status`（替换 T06/T07 的 `—` 占位）；`awem doctor` 的平台连通检查补全（调一次 list_projects，成功/失败/未配置三态）；daemon 顶栏"平台连接状态"数据源就位（T09 消费）。
 - **验收要点**：
   - 假平台端到端：配置 [platform] 后 list/status 显示 ONLINE/BUSY/OFFLINE 与漂移黄标数据；
@@ -81,6 +81,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
+| 2026-10-25 | F6 | ✅ 通过 + 子任务 ✅ | 实跑 `go test ./internal/cli/ -run Test端到端 -count=1`（假平台端到端）：平台状态与漂移展示（list 含 ONLINE 与 ⚠1；status 详情含 平台状态：ONLINE、漂移 1 项、--model 本地 "qfmodel" vs 平台 "dfmodel"、需 restart 文案；--json 含 platform/drift 结构；平台改 BUSY + 手动刷新后展示跟随）；撤下联动回本地态（无 ONLINE、doctor 回"— 未配置"跳过态且全部通过）；doctor 三态（可达 ✅ 退出 0；断服 ❌ 退出 1）。既有全套回归通过（doctor 本机/矩阵/status 文案更新）。全仓三绿 + 交叉编译。**T08 全部 6 功能点 ✅，子任务 ✅。** |
 | 2026-10-25 | F4 | ✅ 通过 | 实跑 `go test ./internal/platform/ -run TestDrift -count=1`：字段不一致与一致（model qfmodel≠dfmodel 与 context-window 1000000≠400000 恰两处漂移且双侧值正确；reasoning-effort 一致不计；改平台配置后全部一致 → 无漂移）；查询失败静默跳过（权限不足 → Refresh 不报错、状态 ONLINE、无 drift、查询已尝试）；未归属不查询（99999 unowned 且无 launch_config 调用）。开发中修复：checkDrift 初版在状态表更新前执行导致首轮漂移写入丢失（顺序调整为状态更新后合并）。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F3 | ✅ 通过 | 实跑 `go test ./internal/platform/ -run Test轮询 -count=1`：状态变化反映到 Lookup（ONLINE→改 BUSY 后刷新即 BUSY 且心跳解析；未归属 id → unowned）；不可达与恢复（清空假服务工具 → Refresh 报错且 Lookup=unreachable、FailCount=1；恢复种子后回 ONLINE、计数清零）；Start 循环（50ms 周期 2s 内 ≥3 次 list_executors；ctx 取消即退出）；未配置平台 Start 立即返回不启动。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F2 | ✅ 通过 | 实跑 `go test ./internal/platform/ -run "Test发现|Test缓存|Test平台侧|Test未配置" -count=1`：多空间映射正确（10086→10000、20001→10001）且缓存落盘可读回；权限不足空间跳过（platform_skip 事件 + 可达空间归属仍建立）；缓存命中避免重复扫描（二次 ensureDiscovery list_projects 仍 1 次；新增本地 id 触发第 2 次全量）；平台侧删除后全量发现归属移除；未配置平台 ensureDiscovery no-op 且 Lookup 未命中。全仓三绿 + 交叉编译。 |

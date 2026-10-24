@@ -34,7 +34,7 @@ func TestDoctor本机全项输出(t *testing.T) {
 		t.Fatalf("结尾应报全部通过：%s", out)
 	}
 	// 平台连通占位：— 且不误报失败
-	if !strings.Contains(out, "— 平台连通：T08") {
+	if !strings.Contains(out, "— 平台连通：未配置") {
 		t.Fatalf("平台连通应为跳过占位：%s", out)
 	}
 }

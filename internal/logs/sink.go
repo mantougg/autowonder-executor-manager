@@ -18,7 +18,7 @@ type LogSink struct {
 	mu     sync.Mutex
 	path   string
 	f      *os.File
-	size   int64  // 当前文件已写字节
+	size   int64 // 当前文件已写字节
 	closed bool
 
 	// 滚动参数（T04-F2 起生效）

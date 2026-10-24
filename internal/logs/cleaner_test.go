@@ -23,7 +23,7 @@ func makeFile(t *testing.T, dir, name string, mtime time.Time) {
 func Test清理只删过期(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Date(2026, 10, 25, 12, 0, 0, 0, time.Local)
-	old := now.AddDate(0, 0, -8)  // 超过 7 天
+	old := now.AddDate(0, 0, -8) // 超过 7 天
 	recent := now.AddDate(0, 0, -1)
 
 	makeFile(t, dir, "e1.log.1", old)     // 过期 → 删

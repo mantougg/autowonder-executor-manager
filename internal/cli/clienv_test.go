@@ -18,6 +18,7 @@ import (
 	"awem/internal/config"
 	"awem/internal/daemon"
 	"awem/internal/logs"
+	"awem/internal/platform"
 	"awem/internal/supervisor"
 )
 
@@ -42,14 +43,18 @@ func TestMain(m *testing.M) {
 
 // cliEnv 是一个可测的 CLI 环境。
 type cliEnv struct {
-	reg    *Registry
-	out    *bytes.Buffer
-	stdin  *strings.Reader // 确认交互输入（每次调用前重置）
-	p      config.Paths
-	mgr    *logs.Manager
-	sup    *supervisor.Supervisor
-	server *httptest.Server
-	home   string // 注入的家目录（import 归档用）
+	reg        *Registry
+	out        *bytes.Buffer
+	stdin      *strings.Reader // 确认交互输入（每次调用前重置）
+	p          config.Paths
+	mgr        *logs.Manager
+	sup        *supervisor.Supervisor
+	watcher    *config.Watcher
+	server     *httptest.Server
+	apiSrv     *api.Server
+	localExecs []config.Executor // 预置执行器（平台联动 LocalIDs 用）
+	currentSvc *platform.Service // 当前装配的平台联动（端到端测试用）
+	home       string            // 注入的家目录（import 归档用）
 }
 
 // newCLIEnv 构造环境；execs 为预置执行器（走 API 等价的落盘+发布路径）。
@@ -93,9 +98,12 @@ func newCLIEnv(t *testing.T, execs ...config.Executor) *cliEnv {
 
 	env := &cliEnv{
 		reg: NewRegistry(), out: &bytes.Buffer{},
-		p: p, mgr: mgr, sup: sup, server: server,
+		p: p, mgr: mgr, sup: sup, localExecs: execs,
 		home: filepath.Join(dir, "home"),
 	}
+	env.apiSrv = srv
+	env.server = server
+	env.watcher = w
 	if err := os.MkdirAll(env.home, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +111,7 @@ func newCLIEnv(t *testing.T, execs ...config.Executor) *cliEnv {
 	RegisterCommands(env.reg, Deps{
 		Layout: func() (config.Paths, error) { return p, nil },
 		Connect: func(context.Context) (*daemon.Client, error) {
-			return daemon.NewClientAt(server.URL, "cli-test-token"), nil
+			return daemon.NewClientAt(env.server.URL, "cli-test-token"), nil
 		},
 		In:      env, // 实现 io.Reader：每次 run 前重置（见 resetStdin/Run）
 		Out:     env.out,
@@ -142,3 +150,22 @@ func (e *cliEnv) output() string { return e.out.String() }
 
 const validCommand = "npx -y autowonder@0.3.22 connect --ws-url ws://127.0.0.1:1/ws " +
 	"--token secret-token-abcdef123456 --executor-id 10086 --provider qoder --model qfmodel --reasoning-effort medium --context-window 1000000 --token-aware-enable"
+
+// setPlatform 装配平台联动（重建 api server 带 Plat 注入；T08-F6 端到端用）。
+// svc 为 nil 表示撤下联动（回到本地态）。
+func (e *cliEnv) setPlatform(t *testing.T, svc *platform.Service) {
+	t.Helper()
+	e.server.Close()
+	opts := api.Options{
+		Paths: e.p, Token: "cli-test-token", Logs: e.mgr, Sup: e.sup,
+		Watcher: e.watcher, Port: 18765, Version: "test-1.2.3",
+	}
+	if svc != nil {
+		opts.Plat = svc
+		opts.Ping = svc.Ping
+		opts.PlatConfigured = func() bool { return true }
+	}
+	e.apiSrv = api.New(opts)
+	e.server = httptest.NewServer(e.apiSrv.Handler())
+	t.Cleanup(e.server.Close)
+}

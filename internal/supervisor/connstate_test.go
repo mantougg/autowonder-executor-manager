@@ -20,8 +20,8 @@ func TestParseConnLine(t *testing.T) {
 		{"ws disconnected, reconnecting executorId=10086 retryIn=15s", ConnReconnecting, true},
 		{"ws disconnected before stable interval, reconnecting executorId=1 retryIn=2s", ConnReconnecting, true},
 		{"runtime is restarting; retry after reconnect", ConnReconnecting, true},
-		{"dispatch state=FAILED dispatchId=abc error=x", ConnUnknown, false},   // 任务日志不算连接事件
-		{"Connecting to wss://a/ws/executor...", ConnUnknown, false},          // shim 启动行 ≠ 已连接
+		{"dispatch state=FAILED dispatchId=abc error=x", ConnUnknown, false}, // 任务日志不算连接事件
+		{"Connecting to wss://a/ws/executor...", ConnUnknown, false},         // shim 启动行 ≠ 已连接
 		{"Commands: 3  Status: 4", ConnUnknown, false},
 		{"", ConnUnknown, false},
 	}

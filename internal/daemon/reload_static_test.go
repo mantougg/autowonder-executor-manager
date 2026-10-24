@@ -1,11 +1,11 @@
 //go:build !windows
 
 // reload_static_test.go：静态资源与 reload 收口（T06-F7 验收）。
-//	1) / 与未知前端路由均返回内嵌 index.html（真 daemon HTTP）；
-//	2) /api、/ws 不被 SPA fallback 拦截；
-//	3) awem reload 手改 config.toml 后生效：后续 API 命令看到新配置；
-//	4) POST /api/reload 与文件监视热加载复用同一入口（Watcher.Reload，
-//	   均产生 config_changed 事件）。
+//  1. / 与未知前端路由均返回内嵌 index.html（真 daemon HTTP）；
+//  2. /api、/ws 不被 SPA fallback 拦截；
+//  3. awem reload 手改 config.toml 后生效：后续 API 命令看到新配置；
+//  4. POST /api/reload 与文件监视热加载复用同一入口（Watcher.Reload，
+//     均产生 config_changed 事件）。
 package daemon
 
 import (

@@ -9,6 +9,7 @@ import (
 	"awem/internal/config"
 	"awem/internal/launchcmd"
 	"awem/internal/logs"
+	"awem/internal/platform"
 	"awem/internal/supervisor"
 )
 
@@ -19,10 +20,10 @@ type executorView struct {
 	Autostart     bool          `json:"autostart"`
 	WorkspaceRoot string        `json:"workspace_root,omitempty"`
 	Restart       restartView   `json:"restart"`
-	Parsed        *parsedView   `json:"parsed"`           // 解析失败为 null（配置校验兜底，防御）
-	Local         localView     `json:"local"`            // 本地守护状态
-	Platform      *platformView `json:"platform"`         // 平台状态（T08 前恒 null）
-	Drift         any           `json:"drift"`            // 漂移占位（T08 前恒 null）
+	Parsed        *parsedView   `json:"parsed"`   // 解析失败为 null（配置校验兜底，防御）
+	Local         localView     `json:"local"`    // 本地守护状态
+	Platform      *platformView `json:"platform"` // 平台状态（T08 前恒 null）
+	Drift         any           `json:"drift"`    // 漂移占位（T08 前恒 null）
 }
 
 type restartView struct {
@@ -58,8 +59,14 @@ type localView struct {
 }
 
 type platformView struct {
-	Status        string `json:"status"` // ONLINE/BUSY/OFFLINE
+	Status        string `json:"status"` // ONLINE/BUSY/OFFLINE/unreachable/unowned
 	LastHeartbeat string `json:"last_heartbeat,omitempty"`
+}
+
+// driftView 是漂移信息（null=无漂移或未联动；文案按 design #9）。
+type driftView struct {
+	Fields  []platform.DriftField `json:"fields"`
+	Message string                `json:"message"` // 固定文案："配置与平台不一致，需 restart 或平台配置已变"
 }
 
 // buildExecutorView 组装单执行器视图。
@@ -109,10 +116,16 @@ func (s *Server) buildExecutorView(e config.Executor) executorView {
 	} else {
 		v.Local = localView{State: string(supervisor.StateStopped), Conn: string(supervisor.ConnUnknown)}
 	}
-	// 平台状态（T08 前为 Noop：恒 null）
+	// 平台状态与漂移（联动启用后注入；未联动/未命中为 null 占位）
 	if v.Parsed != nil {
 		if ps, ok := s.opts.Plat.Lookup(v.Parsed.ExecutorID); ok {
 			v.Platform = &platformView{Status: ps.State, LastHeartbeat: formatTime(ps.LastHeartbeat)}
+			if len(ps.Drift) > 0 {
+				v.Drift = driftView{
+					Fields:  ps.Drift,
+					Message: "配置与平台不一致，需 restart 或平台配置已变（v1 不自动回写）",
+				}
+			}
 		}
 	}
 	return v
@@ -120,12 +133,12 @@ func (s *Server) buildExecutorView(e config.Executor) executorView {
 
 // statusView 是 GET /api/status 响应。
 type statusView struct {
-	Version   string        `json:"version"`
-	PID       int           `json:"pid"`
-	Port      int           `json:"port"`
-	StartedAt string        `json:"started_at"`
-	UptimeMS  int64         `json:"uptime_ms"`
-	Platform  platformMeta  `json:"platform"`
+	Version   string       `json:"version"`
+	PID       int          `json:"pid"`
+	Port      int          `json:"port"`
+	StartedAt string       `json:"started_at"`
+	UptimeMS  int64        `json:"uptime_ms"`
+	Platform  platformMeta `json:"platform"`
 }
 
 type platformMeta struct {

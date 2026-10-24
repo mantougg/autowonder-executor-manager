@@ -1,4 +1,5 @@
 // settings.go：状态与设置路由（T06-F3）。
+//
 //	GET /api/status    daemon 版本/uptime/平台连接占位
 //	GET /api/settings  platform/log 段（mcp_token 掩码）
 //	PUT /api/settings  同结构写回（token 掩码=未修改；日志参数下次启动生效）
@@ -6,6 +7,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"time"
@@ -16,6 +18,7 @@ import (
 
 func (s *Server) registerSettingsRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/status", s.handleStatus)
+	mux.HandleFunc("GET /api/platform/health", s.handlePlatformHealth)
 	mux.HandleFunc("GET /api/settings", s.handleSettingsGet)
 	mux.HandleFunc("PUT /api/settings", s.handleSettingsPut)
 	mux.HandleFunc("POST /api/reload", s.handleReload)
@@ -112,7 +115,7 @@ func (s *Server) handleReload(w http.ResponseWriter, r *http.Request) {
 	after := s.currentConfig()
 	writeJSON(w, http.StatusOK, map[string]any{
 		"reloaded": true,
-		"changed":  before.Server.Port != after.Server.Port || len(before.Executors) != len(after.Executors) ||
+		"changed": before.Server.Port != after.Server.Port || len(before.Executors) != len(after.Executors) ||
 			!configEqualShallow(before, after),
 	})
 }
@@ -130,4 +133,35 @@ func configEqualShallow(a, b config.Config) bool {
 		}
 	}
 	return true
+}
+
+// handlePlatformHealth GET /api/platform/health（T08-F6，doctor 数据源）：
+// {"configured":bool,"ok":bool|null,"detail":"…"}。未配置 → ok=null；
+// 探测失败 → ok=false + 错误摘要。
+func (s *Server) handlePlatformHealth(w http.ResponseWriter, r *http.Request) {
+	configured := false
+	if s.opts.PlatConfigured != nil {
+		configured = s.opts.PlatConfigured()
+	}
+	out := map[string]any{"configured": configured, "ok": nil, "detail": ""}
+	if !configured {
+		out["detail"] = "未配置 [platform] 段（联动禁用）"
+		writeJSON(w, http.StatusOK, out)
+		return
+	}
+	if s.opts.Ping == nil {
+		out["detail"] = "daemon 未提供平台探测"
+		writeJSON(w, http.StatusOK, out)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	if err := s.opts.Ping(ctx); err != nil {
+		out["ok"] = false
+		out["detail"] = err.Error()
+	} else {
+		out["ok"] = true
+		out["detail"] = "平台可达"
+	}
+	writeJSON(w, http.StatusOK, out)
 }
