@@ -1,6 +1,6 @@
 # T04 · 日志系统
 
-- **子任务状态**：🔄 进行中（2026-10-25 开工，无人值守会话）
+- **子任务状态**：✅ 已检查（2026-10-25 全部功能点自检通过）
 - **前置依赖**：T01、T02（log 配置段：max_size_mb / retention_days）
 - **设计依据**：[design.md](../design/design.md) §11（日志方案）、§5.1（目录布局）
 - **产物范围**：`internal/logs/`（执行器日志写入/滚动/保留、事件日志、tail 与跟随接口）
@@ -64,8 +64,8 @@
 
 ### F6 · tail 与跟随读取接口
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：提供读取接口（供 CLI `awem log -f` 与 Web WS 共用）：`Tail(name, lines)` 返回尾部 N 行；`Follow(name)` 流式推送新行（channel/回调），**滚动切换后自动跟随新文件**；历史分页读取（详情页向上翻页用，按行偏移或分页策略自定记录）。文件不存在返回明确"无日志"信号（CLI 显示、Web 空状态）。
 - **验收要点**：
   - 单测：写 K 行 → Tail(N<K) 返回最后 N 行；
@@ -86,6 +86,7 @@
 | 2026-10-25 | F3 | ✅ | 实跑 `go test ./internal/logs/ -run 清理 -v` 2 用例 PASS：os.Chtimes 注入 mtime（8 天前/1 天前），7 天保留下恰删 3 个过期滚动文件（e1.log.1/.2、events.log.1），活动文件与未过期滚动文件与无关文件留存；onRemove 回调次数与删除数一致（清理事件）；目录不存在静默空返回、days<=0 默认 7 天删 30 天前文件 |
 | 2026-10-25 | F4 | ✅ | 实跑 `go test ./internal/logs/ -run '事件|MaskSecret' -v` 4 用例 PASS：写 2 事件读回 JSONL 逐行 json.Unmarshal 成功、type/executor/detail 字段齐、time 合理、空 executor omitempty；11 个事件类型常量覆盖 §11 场景（启停/崩溃/重启/配置加载成功与失败/变更/服务安装/清理/daemon 启停）；事件日志超阈值滚动产生 .1；MaskSecret 6 组边界（空/短/长令牌保留前4后4） |
 | 2026-10-25 | F5 | ✅ | 实跑 `go test ./internal/logs/ -run Debug -v` 2 用例 PASS：RecordExecutorStart(e, true) 事件 JSONL 含 "debug=true" 与磁盘提示、(e, false) 无 debug 标记；DebugEnabled 对带/不带 --debug 命令与不可解析命令分别返回 true/false/false |
+| 2026-10-25 | F6 | ✅ | 实跑 `go test ./internal/logs/ -v` 20 用例全 PASS（含 Follow 连跑 5 次稳定）：写 100 行 Tail(10) 返回 line-091..line-100、Tail(500) 返回全部；文件不存在 Tail/Follow 均空态不报错；ReadLines 分页（0-20/40-50/越界空 + 总数 50）；Follow 跨多次滚动（maxBytes=200 下 60 行连写触发连滚）零漏行零乱序且历史不重推（链回放修复后连跑 5 次 PASS）；Purge 删除当前+滚动链且重开可写；Cleanup 删过期文件并写 log_cleanup 事件（读回 events.log 验证） |
 
 ## 变更记录
 
@@ -102,4 +103,6 @@
 | 2026-10-25 | F4 选型：JSONL + 复用 LogSink | 事件格式 JSONL（一行一事件：time/type/executor/detail，程序可解析、人可 grep、追加适配滚动）；EventLog 内部复用 LogSink（线程安全+滚动白得），滚动参数与执行器日志共用（事件量小，取简单方案）。附 MaskSecret 掩码助手（conventions §5 敏感令牌不回显） |
 | 2026-10-25 | F4 ✅ | EventLog + EventType 枚举 + MaskSecret，单测通过 |
 | 2026-10-25 | F5 ✅ | RecordExecutorStart（debug 标记）+ DebugEnabled（命令查询，供 T05 spawn） |
+| 2026-10-25 | F6 选型：Follow 轮询 + 链回放 | Follow 用 100ms 轮询（简单跨平台，无需 inotify/FSEvents 双实现）；滚动检测用 `os.SameFile`（inode）而非尺寸回缩（新文件快速超过旧偏移时尺寸比较失效）；**连滚多次场景沿编号链回放**（定位已读尽文件的链位 k → 接着读 path.(k-1) → … → 当前文件），快写入下不漏行。Tail/文件不存在 = (nil,nil) 空态信号；分页按行偏移（offset 从头，翻页 offset-=limit） |
+| 2026-10-25 | F6 ✅ | Manager（Sink 注册表/Purge/Cleanup 联动事件/Tail/ReadLines/Follow），单测通过 |
 | 2026-10-25 | F5 ✅（检查） | debug 启动事件含标记与磁盘提示、默认 false 无标记；命令查询 3 场景 |
