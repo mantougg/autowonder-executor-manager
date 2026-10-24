@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+// min 返回较小值（退避封顶用）。
+
 // DriftField 是一个漂移字段（本地 vs 平台）。
 type DriftField struct {
 	Field  string `json:"field"`  // 字段名（model/reasoning-effort/…）
@@ -51,9 +53,9 @@ type SyncerConfig struct {
 
 // Options 是 NewService 的依赖注入。
 type Options struct {
-	Config    *SyncerConfig                  // nil = 联动禁用
-	CachePath string                         // 归属缓存落盘路径（空=纯内存）
-	LocalIDs  func() []LocalExecutor         // 本地执行器集合（发现与漂移的本地侧）
+	Config    *SyncerConfig                        // nil = 联动禁用
+	CachePath string                               // 归属缓存落盘路径（空=纯内存）
+	LocalIDs  func() []LocalExecutor               // 本地执行器集合（发现与漂移的本地侧）
 	OnEvent   func(typ, executorID, detail string) // 事件回调（daemon 接事件日志）
 }
 
@@ -66,9 +68,13 @@ type Service struct {
 	onEvent   func(typ, executorID, detail string)
 
 	mu     sync.RWMutex
-	owner  map[string]int64  // executor_id(字符串) -> workspace_id
+	owner  map[string]int64          // executor_id(字符串) -> workspace_id
 	remote map[string]ExecutorRemote // executor_id -> 最近平台侧信息
-	status map[string]Status // executor_id -> 联动快照（含 unreachable/unowned）
+	status map[string]Status         // executor_id -> 联动快照（含 unreachable/unowned）
+
+	// 轮询状态（poller.go）
+	failCount       int           // 连续失败次数（成功清零）
+	pendingInterval time.Duration // 下一轮间隔（失败退避后）
 }
 
 // NewService 创建联动器（禁用时等价 Noop；不启动轮询，Start 由 daemon 调）。

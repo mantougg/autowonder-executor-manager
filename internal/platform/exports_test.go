@@ -18,7 +18,7 @@ func readPackageFile(name string) (string, error) {
 }
 
 // assertReadOnlyExports 断言 *Client 的导出方法恰为三个只读工具方法
-//（防止后续开发误加导出的通用 call/write 方法破坏只读红线）。
+// （防止后续开发误加导出的通用 call/write 方法破坏只读红线）。
 func assertReadOnlyExports(t *testing.T) {
 	t.Helper()
 	typ := reflect.TypeOf(&Client{})
