@@ -36,6 +36,9 @@ var wsUpgrader = websocket.Upgrader{
 func (s *Server) wsHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /ws/logs/{name}", s.handleWSLogs)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		writeAPIError(w, notFound("未定义的 WebSocket 端点："+r.URL.Path))
+	})
 	return mux
 }
 

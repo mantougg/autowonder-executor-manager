@@ -1,6 +1,6 @@
 # awem 开发任务索引（task-awem-dev）
 
-- **总任务状态**：🔄 进行中 —— 5/11 子任务已检查，29/71 功能点已检查
+- **总任务状态**：🔄 进行中 —— 6/11 子任务已检查，36/71 功能点已检查
 - **计划依据**：[design.md](../design/design.md)（v1 定稿，2026-10-24）+ [AGENTS.md](../../AGENTS.md)
 - **计划生成**：2026-10-24，拆解为 11 个子任务、71 个功能点
 - **执行方式**：用 `awem-dev` 技能（仓库 `.agents/skills/awem-dev/`）说"继续 awem 开发/执行 T0X/检查 T0X"；或按 [conventions.md](conventions.md) §7–8 的流程手动执行与更新状态。
@@ -27,7 +27,7 @@
 | T03 | 启动命令解析与导入 | T01 | 6/6 | ✅ 已检查 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
 | T04 | 日志系统 | T01、T02 | 6/6 | ✅ 已检查 | [t04-logging.md](t04-logging.md) |
 | T05 | Supervisor 进程守护 | T02、T03、T04 | 7/7 | ✅ 已检查 | [t05-supervisor.md](t05-supervisor.md) |
-| T06 | daemon 与本地 API | T02、T04、T05 | 6/7 | 🔄 进行中 | [t06-daemon-api.md](t06-daemon-api.md) |
+| T06 | daemon 与本地 API | T02、T04、T05 | 7/7 | ✅ 已检查 | [t06-daemon-api.md](t06-daemon-api.md) |
 | T07 | CLI 子命令集 | T03、T05、T06 | 0/10 | ⬜ 未开始 | [t07-cli.md](t07-cli.md) |
 | T08 | 平台状态联动（只读） | T02、T03、T06 | 0/6 | ⬜ 未开始 | [t08-platform-sync.md](t08-platform-sync.md) |
 | T09 | Web SPA | T03、T06、T08 | 0/8 | ⬜ 未开始 | [t09-web-spa.md](t09-web-spa.md) |
@@ -102,3 +102,4 @@
 | 2026-10-25 | T06-F4 ✅ | WebSocket 日志实时流：backlog+实时行+断开回收；修复 T04-F6 Follow 首开竞态吞行（33/71） |
 | 2026-10-25 | T06-F5 ✅ | 鉴权与 CSRF：Host/Origin/token 三层中间件，401/403 矩阵 + 真实 curl 六项冒烟（34/71） |
 | 2026-10-25 | T06-F6 ✅ | CLI 惰性拉起 daemon：探活/后台拉起/就绪等待/退出码 5 指引，awem reload 接通（35/71） |
+| 2026-10-25 | T06-F7 ✅ + 子任务 ✅ | 静态资源与 reload 收口：SPA fallback/JSON 404 兜底/reload 全链路生效验证；T06 全部 7 功能点 ✅（36/71），已推送 |

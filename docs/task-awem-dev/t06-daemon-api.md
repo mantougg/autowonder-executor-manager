@@ -1,6 +1,6 @@
 # T06 · daemon 与本地 API
 
-- **子任务状态**：🔄 进行中
+- **子任务状态**：✅ 已检查
 - **前置依赖**：T02、T04、T05
 - **设计依据**：[design.md](../design/design.md) §4（总体架构）、§9（Web UI 后端面）、§10（安全）、D2（惰性启动）、D4（鉴权/防 CSRF）
 - **产物范围**：`internal/api/`（REST + WebSocket + 静态资源 + 鉴权）、daemon 生命周期（单实例、端口写回、CLI 惰性拉起）、`awem reload`
@@ -75,8 +75,8 @@
 
 ### F7 · 静态资源与 reload 收口
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：`/` 挂载 go:embed SPA（T01 F5 升级：fallback 到 index.html 的 SPA 路由）；`POST /api/reload` 与配置热加载路径复用同一入口；`awem reload` CLI 子命令接通（正常由文件监视自动完成，手动入口是兜底）。
 - **验收要点**：
   - 访问 `/` 与未知前端路由均返回 index.html；
@@ -97,6 +97,7 @@
 | 2026-10-25 | F4 | ✅ 通过 | 实跑 `go test ./internal/api/ ./internal/logs/ -count=1`（含 WS 5 用例）：TestWS日志流全链路（真 gorilla 客户端：backlog 只含最后 2 行 → 持续写入新行A/新行B 实时收到 → 客户端断开后 runtime.NumGoroutine 回落到连接前水平、断开后写路径正常）、TestWSbacklog与Follow不丢不重（backlog 后立刻写入窗口行，修复前被 Follow 首开竞态吞掉，现必达）、TestWS未授权被拒（无/错 token 均在升级前 401）、TestWS不存在的执行器 404、TestWS头鉴权（Authorization: Bearer 同样可用）；logs 包既有 20 用例全过（TailOffset/FollowFrom 对旧接口零破坏）。全仓三绿 + 交叉编译。 |
 | 2026-10-25 | F5 | ✅ 通过 | 实跑 `go test ./internal/api/ -count=1`（TestAuth鉴权与CSRF矩阵 13 子用例：无 token 401 / 错 token 401 / 假 Origin（evil.example、无 scheme、跨端口同 IP）403 forbidden 且错误体 code=forbidden / 假 Host（10.0.0.5、外网域名）403 / localhost:7000 与 127.0.0.1:7001 与 [::1]:7002 无 Origin 200 / 同源 Origin（http://127.0.0.1:7003、http://localhost:7004）200；静态资源与 SPA 路由免鉴权 200）。**真实 curl 冒烟**（编译二进制起真 daemon，port 39633）：无 token→401；带 data/api-token 无 Origin→200（/api/status 返回 version/pid/port/uptime）；假 Origin http://evil.example→403；同源 Origin→200；`/`→200 text/html；错 token→401，六项全符。 |
 | 2026-10-25 | F6 | ✅ 通过 | 实跑 `go test ./internal/daemon/ -count=1 -run "TestConnect|TestCLI惰性"`：TestConnect拉起失败退出码5（注入失败拉起 → exitcode.Code(err)==5，错误信息含 "awem daemon" 与 "service install" 指引）；TestCLI惰性拉起daemon（真实二进制 + AWEM_CONFIG_DIR 隔离，4 场景）：① 无 daemon.json → `awem reload` 退出码 0 且 daemon 被自动拉起（daemon.json 报活）；② kill -9 强杀（stale 残留）→ reload 再次拉起新 pid 成功；③ 手改 config.toml 后 `reload --json` 返回 reloaded:true；④ 坏配置（bind=0.0.0.0）→ reload 退出码 5、输出含 `awem daemon` 指引、data/logs/daemon.stderr 记录启动失败原因。全仓三绿 + windows/darwin 交叉编译。 |
+| 2026-10-25 | F7 | ✅ 通过 + 子任务 ✅ | 实跑 `go test ./internal/daemon/ -count=1 -run Test静态资源与reload`（真实二进制全链路）：① GET /、/executors/detail、/settings/任意路由 均 200 text/html 且含内嵌 SPA 页；② GET /api/不存在的端点 → 404 JSON（`"error"` 契约体，未被 SPA fallback 拦截）；③ 手改 config.toml 加执行器 → `awem reload` 退出码 0 → Connect+GET /api/executors 返回新执行器 f7-exec（后续命令看到新配置）；④ events.log 记录 config_changed（reload 与热加载共用发布入口的证据）。全仓 `go build/vet/test` 三绿 + windows/darwin 交叉编译。**T06 全部 7 功能点 ✅，子任务 ✅。** |
 
 ## 变更记录
 
@@ -111,3 +112,4 @@
 | 2026-10-25 | F4 实现 + 缺陷修复 | **WS 库**：gorilla/websocket v1.5.3（生态最广、API 稳定）。**端点与消息契约**：`GET /ws/logs/{name}?tail=N&token=<t>`；服务端帧 `{"type":"backlog","lines":[...]}`（连接后一次性尾部回放）→ `{"type":"line","text":...}`（逐行实时）→ `{"type":"error",...}` 后关闭。**鉴权**：/ws/* 额外接受 query token（浏览器 WS 无法自定义头；仅 /ws 前缀生效，避免 token 进 REST 访问日志）。**修复 T04-F6 遗留竞态**：Follow"订阅时刻的文件末尾"实际取首次打开（≤100ms 轮询延迟）时的 size，backlog→Follow 窗口内写入的行会被吞——logs 包增补 `TailOffset`（读取结束时的 fd 偏移，非 stat，天然原子）与 `FollowFrom(name, offset)`；WS 管道改为 TailOffset→backlog→FollowFrom(offset)，不丢不重（回归测试 TestWSbacklog与Follow不丢不重）。**断开回收**：读泵感知断开→Close 订阅→写泵退出，`<-writeDone` 等待收口（测试用 runtime.NumGoroutine 回落断言）。**状态推送通道 v1 不实现**（前端轮询 /api/executors；记录于此，UI 方案 T09 轮询）。 |
 | 2026-10-25 | F5 实现 + 选型记录 | **中间件顺序**：Host 校验 → Origin 校验（均 403 forbidden）→ token 校验（401 unauthorized）。**Host 白名单**：剥端口后 ∈ {127.0.0.1, localhost, [::1], ::1}。**Origin 策略**：空 Origin（curl/CLI）通过；非空必须与请求 Host 同 host:port（url.Parse 后比较 u.Host == r.Host，scheme 不参与——本地恒 http）；跨端口同 IP 也拒绝。**token 提取顺序**：Authorization: Bearer → X-Awem-Token → /ws/* 的 query token。静态资源（/ 与 SPA 路由）免鉴权（壳无数据）。 |
 | 2026-10-25 | F6 实现 + 选型记录 | **连接器**（internal/daemon/client.go）：`Connect` 读 daemon.json → 探活（GET /api/status 任意 HTTP 响应即活，401 也算）→ 未运行（含 stale/缺失）→ `spawnDetachedDaemon` 后台拉起（os.Executable 自身 `awem daemon`；Unix setsid / Windows CREATE_NEW_PROCESS_GROUP+DETACHED_PROCESS(0x8 字面值，标准库未导出)）→ 100ms 间隔轮询就绪，**超时 10s** → 超时/拉起失败 → exitcode.DaemonNotRunning + 中文指引（前台 `awem daemon` 排障 / `awem service install`）。**stderr 去向**：data/logs/daemon.stderr（排障；stdout 丢弃）。**并发竞态**：多 CLI 同时拉起由单实例锁收敛，各方轮询端口最终都可用。**Client**：带 token 的 API 客户端（Do/GetJSON），服务端错误解析为 APIError 并映射退出码（not_found→3、already_exists→4，其余→1）；T07 CLI 子命令复用。**awem reload 子命令**：Connect → POST /api/reload（--json 直透 API 响应）。 |
+| 2026-10-25 | F7 实现 + 收口 | **SPA 路由**（static.go，F3 时已升级、此处收口验收）：先按 web/dist 静态文件查找（含 mime 推断），未命中回内嵌 index.html（客户端路由接管）；/api、/ws 前缀优先匹配不落 fallback；未定义 API/WS 端点补 JSON 404 兜底（不漏 ServeMux 纯文本）。**reload 复用**：POST /api/reload 与文件监视热加载共用 `Watcher.Reload`（校验→发布→config_changed 事件同一入口）；`awem reload` CLI 经 Connect 惰性拉起后调用。 |

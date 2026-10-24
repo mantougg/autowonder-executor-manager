@@ -56,11 +56,15 @@ func (s *Server) Handler() http.Handler {
 	api := http.NewServeMux()
 	s.registerExecutorRoutes(api)
 	s.registerSettingsRoutes(api)
+	// 未定义 API 端点也按 JSON 错误契约返回（不落 ServeMux 纯文本 404）
+	api.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		writeAPIError(w, notFound("未定义的 API 端点："+r.Method+" "+r.URL.Path))
+	})
 
 	root := http.NewServeMux()
 	root.Handle("/api/", s.auth(api))
 	root.Handle("/ws/", s.auth(s.wsHandler())) // WS 日志流（F4）
-	root.HandleFunc("/", s.spaHandler)         // 静态资源（免鉴权 SPA 壳，F7 完善 fallback）
+	root.HandleFunc("/", s.spaHandler)         // 静态资源（免鉴权 SPA 壳，fallback 见 F7）
 	return root
 }
 
