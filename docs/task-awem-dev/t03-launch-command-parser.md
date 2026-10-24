@@ -47,8 +47,8 @@
 
 ### F4 · 旧脚本 import 解析
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-25 自检）
 - **开发描述**：解析旧 `executor-manager.sh` 的 `EXECUTORS` 数组（真实形态见 `~/.agents/skills/autowonder-project-onboarding/templates/executor-manager.sh`：每行 `"名称|启动命令"`，可能混入注释行/空行/示例占位符）。产出 `[]Imported{Name, Command}`；名称不合规（中文等，违反 D8 字符集）→ 生成合规建议名（如拼音/编号方案，策略记录）并标记"需改名确认"；命令部分复用 F1/F2 解析。
 - **验收要点**：
   - 用真实模板文件做单测 fixture（拷入 `testdata/`）；
@@ -85,6 +85,7 @@
 | 2026-10-25 | F1 | ✅ | 实跑 `go test ./internal/launchcmd/ -v` 5 用例全 PASS：单/双引号包裹空格、引号内另一引号、双引号转义 `\`"`、裸转义空格、相邻引号成一词（拆词与 shell 语义一致）；未闭合引号报错；版本提取（0.3.22）；nohup 叠加与尾部 & 剥离；7 种非法前缀（非 npx/无版本/@空/缺 connect/其他包/不支持 npx 参数/空命令）均返回 UnsupportedCommandError |
 | 2026-10-25 | F2 | ✅ | 实跑 `go test ./internal/launchcmd/ -run 'Parse|Validate' -v` 全 PASS：全字段命令解析结果深比较相等且 Validate 通过；`--flag=value` 与 `--flag value` 两形式等价；布尔 flag 纯式/`=false`/`=true`/非法值；未知 flag（--future-flag=v1、--another 42、裸词）完整保序进 passthrough；末尾缺值与"值位置是另一个 flag"均逐 flag 定位；executor-id 非数字/缺失、token 空、provider 非法/缺失各自报对应中文错误，2 项问题聚合计数 |
 | 2026-10-25 | F3 | ✅ | 实跑 `go test ./internal/launchcmd/ -run Render -v` 全 PASS：乱序输入渲染为固定顺序精确串比对；4 条含 passthrough/布尔/引号命令 assertRoundtrip（parse(render(parse))==parse 深比较）；空格/双引号值加单引号且 roundtrip 不变形；编辑 model/reasoning-effort 后 passthrough `--future-keep=v9` 原样保留；false 布尔不渲染；quoteValue 9 组边界（裸/带引号/内嵌单引号/前导横线/空串） |
+| 2026-10-25 | F4 | ✅ | 实跑 `go test ./internal/launchcmd/ -run ParseScript -v` 5 用例 PASS：真实模板 fixture（testdata/executor-manager.sh）恰解析 1 条、名称"NO1示例数字人"、命中占位符标记而非静默导入；合成脚本覆盖数组内外注释/空行跳过、合法条目直入、中文名→exec-10087 建议、单引号条目、无分隔符报错、坏命令报"不支持的命令"；建议名去重（exec-5 / exec-5-2）；无数组报错、空数组 0 条 |
 
 ## 变更记录
 
@@ -98,3 +99,5 @@
 | 2026-10-25 | F2 ✅ | Parsed 结构 + Parse/Validate，全字段/两形式/保序单测通过 |
 | 2026-10-25 | F3 选型：引用规则 | 值按保守安全字符集 `[A-Za-z0-9._~:@/+=,%-]` 裸输出（含 `-`），集合外或以 `-` 开头的值用单引号包裹（内嵌 `'` 转义为 `'\''`）；已知字段固定顺序渲染（ws-url→token→executor-id→provider→model→reasoning-effort→context-window→memory-mode→max-tasks→布尔→passthrough 原序）；布尔 false 不渲染（重解析同为 false，幂等成立） |
 | 2026-10-25 | F3 ✅ | Render + quoteValue，幂等/顺序/编辑保 passthrough 单测通过 |
+| 2026-10-25 | F4 选型：改名建议策略 | 原名不合规但命令合法时建议名 = `exec-<executor-id>`（id 是最稳的定位符），解析失败时 `imported-<序号>`；同建议名冲突追加 `-2/-3`。占位符检测用 `<[^<>]+>` 正则（覆盖 `<runtimeVersion>`/`<id>`/`<内网地址>` 等），命中即标 ParseErr"疑似模板示例行"，不静默导入。真实模板已拷贝为 testdata/executor-manager.sh fixture |
+| 2026-10-25 | F4 ✅ | ParseScript + ValidExecutorName + suggestName，fixture/合成单测通过 |
