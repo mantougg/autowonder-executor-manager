@@ -15,6 +15,8 @@ import (
 	"awem/internal/config"
 	"awem/internal/daemon"
 	"awem/internal/exitcode"
+	"awem/internal/logs"
+	"awem/internal/service"
 	"awem/internal/version"
 )
 
@@ -85,11 +87,67 @@ func buildRegistry() *cli.Registry {
 		{Name: "log", Summary: "查看执行器日志（-f 跟随）", Usage: "awem log <名称> [-f] [--lines N]"},
 		{Name: "import", Summary: "解析旧 executor-manager.sh 导入", Usage: "awem import [--with-logs]"},
 		{Name: "doctor", Summary: "环境体检（Node/npx/平台连通/磁盘）", Usage: "awem doctor"},
-		{Name: "service", Summary: "系统服务安装/卸载/状态", Usage: "awem service install|uninstall|status"},
 	}
 	for i := range placeholders {
 		r.Register(&placeholders[i])
 	}
+
+	// service：系统服务安装/卸载/状态（T10）。
+	r.Register(&cli.Command{
+		Name:    "service",
+		Summary: "系统服务安装/卸载/状态（Linux systemd user / macOS launchd / Windows 登录自启）",
+		Usage:   "awem service install|uninstall|status",
+		Run: func(g cli.GlobalFlags, args []string) error {
+			if len(args) != 1 {
+				return exitcode.Usagef("用法：awem service install|uninstall|status")
+			}
+			p, err := config.DefaultLayout()
+			if err != nil {
+				return exitcode.Wrap(exitcode.General, err)
+			}
+			var el *logs.EventLog
+			if mgr := logs.NewManager(p.ExecutorsLogDir, p.EventsLog, 0, 0, 0); mgr != nil {
+				el, _ = mgr.EventLog()
+			}
+			switch args[0] {
+			case "install":
+				if err := service.Install(el); err != nil {
+					return exitcode.Wrap(exitcode.General, err)
+				}
+				fmt.Println("服务安装完成")
+				return nil
+			case "uninstall":
+				if err := service.Uninstall(el); err != nil {
+					return exitcode.Wrap(exitcode.General, err)
+				}
+				fmt.Println("服务已卸载")
+				return nil
+			case "status":
+				info, err := service.Status()
+				if err != nil {
+					return exitcode.Wrap(exitcode.General, err)
+				}
+				if g.JSON {
+					out, _ := json.Marshal(info)
+					fmt.Println(string(out))
+					return nil
+				}
+				if !info.Installed {
+					fmt.Printf("未安装（%s）\n", info.Detail)
+				} else if info.Running {
+					fmt.Printf("已安装且运行中：%s\n", info.Detail)
+				} else {
+					fmt.Printf("已安装未运行：%s\n", info.Detail)
+				}
+				if info.PID > 0 {
+					fmt.Printf("daemon pid %d，端口 %d\n", info.PID, info.Port)
+				}
+				return nil
+			default:
+				return exitcode.Usagef("未知子命令 %q（应为 install|uninstall|status）", args[0])
+			}
+		},
+	})
 
 	// API 依赖型子命令集（T07 逐功能点扩充；重名覆盖上面的占位注册）
 	cli.RegisterCommands(r, cli.Deps{})

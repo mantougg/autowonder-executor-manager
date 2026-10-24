@@ -31,7 +31,7 @@
 | T07 | CLI 子命令集 | T03、T05、T06 | 10/10 | ✅ 已检查 | [t07-cli.md](t07-cli.md) |
 | T08 | 平台状态联动（只读） | T02、T03、T06 | 6/6 | ✅ 已检查 | [t08-platform-sync.md](t08-platform-sync.md) |
 | T09 | Web SPA | T03、T06、T08 | 1/8 | 🔄 进行中 | [t09-web-spa.md](t09-web-spa.md) |
-| T10 | 系统服务与跨平台专项 | T06、T07 | 0/6 | ⬜ 未开始 | [t10-service-cross-platform.md](t10-service-cross-platform.md) |
+| T10 | 系统服务与跨平台专项 | T06、T07 | 2/6 | 🔄 进行中 | [t10-service-cross-platform.md](t10-service-cross-platform.md) |
 | T11 | 打包分发与 Agent 文档 | T01–T10 | 0/4 | ⬜ 未开始 | [t11-release-docs.md](t11-release-docs.md) |
 
 ## 执行顺序与并行说明
@@ -129,4 +129,6 @@
 | 2026-10-25 | T09-F6 ✅ | 设置页：平台/日志/外观三组表单，主题即时切换（58/71） |
 | 2026-10-25 | T09-F7 ✅ | 组件与可访问性收口：可执行 UI 自检脚本 + §4 逐条对照（59/71） |
 | 2026-10-25 | T09-F8 ✅ + 子任务 ✅ | 构建链与 embed：make build 单命令、端到端冒烟 8 项全过、gzip 56.77KB 达标；T09 全部 8 功能点 ✅（60/71），已推送 |
+| 2026-10-25 | T10 开工 + F1 ✅ | service 框架：Platform 注册分发、幂等策略、CLI 接线（61/71） |
+| 2026-10-25 | T10-F2 ✅ | Linux systemd user 真机全链路：install/uninstall 干净幂等（62/71） |
 | 2026-10-25 | T09 开工 + F1 ✅ | Vite+React+TS 脚手架、设计令牌全量落地、主题机制、布局骨架（53/71） |
