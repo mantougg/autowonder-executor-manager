@@ -47,8 +47,8 @@
 
 ### F4 · 热加载（文件监视）
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：🟠 已完成
+- **检查状态**：✅ 通过（2026-10-24 自检）
 - **开发描述**：用 fsnotify（或等价机制）监视 config.toml，变更 → 原子重读 + 校验 → 成功则发布新配置给订阅者（接口预留：supervisor/api 在 T05/T06 订阅）；**失败（语法/校验错）保留旧内存配置继续运行**，并记一条错误事件（事件日志 T04 提供，先允许记到 stderr + 结构化回调，T04 完成后接上）。编辑器"写一半"与重复触发需去抖。
 - **验收要点**：
   - 单测：改文件 → 订阅者收到新配置；写入坏 TOML → 旧配置仍在、错误事件产生；
@@ -83,6 +83,7 @@
 |---|---|---|---|
 | 2026-10-24 | F1 | ✅ | 实跑 `go test ./internal/config/ -v` 3 用例 PASS：Layout 注入假目录断言 8 条路径；Linux 下 XDG_CONFIG_HOME 覆盖验证 Root=$XDG/awem（其余平台根目录由 os.UserConfigDir 标准库承担，§5.1 三平台表对应）；EnsureDir 创建 4 级目录树 + 默认 config.toml（中文注释头）、目录权限 0700 断言、二次调用不覆盖用户配置 |
 | 2026-10-24 | F2 | ✅ | 实跑 `go test ./internal/config/ -v` 10 用例全 PASS：结构体默认值断言（bind 127.0.0.1/port 0/log 50/7/platform nil）；读写 roundtrip 深比较相等（含中文名、命令内引号、反斜杠）；缺省段（platform 未配 nil、restart 未配默认开+exponential、poll_interval 缺省 60s、autostart 缺省 false）；坏 TOML 错误含行号；MarshalTOML 含中文节注释头/缩进/引号转义；Save 无 tmp 残留 |
+| 2026-10-24 | F4 | ✅ | 实跑 `go test ./internal/config/ -run 'Reload|去抖|真实文件' -v` 全 PASS：改文件→订阅者收到 port=200/300 新配置（含真实 fsnotify 端到端，原子替换写法）；坏 TOML 与校验错（bind 0.0.0.0）→ Current 保留旧值 + OnError 收到 2 条事件；150ms 去抖窗内 5 个连续写事件仅重载 1 次、新事件再重载；同目录 .tmp/无关文件事件 0 次重载 |
 
 ## 变更记录
 
@@ -95,3 +96,5 @@
 | 2026-10-24 | F2 选型：restart.enabled 语义 | `*bool` 区分"未配置"与"显式关闭"：未配置默认开启（design 决策 3"崩溃自动拉起…可关"→默认开），读入时归一化为非 nil，写回恒定全量字段 |
 | 2026-10-24 | F2 ✅ | 模型 + Load/Save/MarshalTOML，roundtrip/默认值/错误定位单测通过 |
 | 2026-10-24 | F3 部分完成 🔄 | 已实现：name 唯一性、D8 字符集 `[a-zA-Z0-9._-]`（中文/空格/符号均报错）、bind 仅 127.0.0.1、port 范围、command 非空，逐条聚合报告含条目定位。**延期项（按本文件预授权路径登记）**：executor-id 数字 / token 非空 / provider ∈ {qoder,qodercn,claude,codex} 的校验依赖 T03 启动命令解析器，避免重复实现两套解析；T03 完成后回来接入并整点验收 |
+| 2026-10-24 | F4 选型：fsnotify + 监视目录 | fsnotify v1.10.1；监视 config.toml 所在**目录**而非文件（Save 走 tmp+rename 原子替换，直接监视文件会丢 inode），按 basename 过滤事件（.tmp 事件天然忽略）。去抖默认 200ms 静默窗口（编辑器写一半/重复触发合并为一次重载）。错误事件出口为 OnError 回调（无注册时打 stderr），T04 事件日志完成后接入 |
+| 2026-10-24 | F4 ✅ | Watcher（Reload 语义/去抖/真实监视端到端）单测通过 |
