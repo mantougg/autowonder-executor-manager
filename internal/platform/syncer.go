@@ -30,10 +30,11 @@ type Status struct {
 	State         string
 	LastHeartbeat time.Time
 	Drift         []DriftField
-	Name          string // 平台侧执行器名（接入时的中文名，如 NO1快速全栈开发）
-	AgentName     string // 所属数字工人中文名（如 快速全栈开发）
-	Project       string // 所属项目（工作空间）名
-	Squad         string // 所属小队名（多个顿号分隔）
+	Name          string   // 平台侧执行器名（接入时的中文名，如 NO1快速全栈开发）
+	AgentName     string   // 所属数字工人中文名（如 快速全栈开发）
+	Project       string   // 所属项目（工作空间）名
+	Squad         string   // 所属小队名（多个顿号分隔）
+	SquadNames    []string // 所属小队数组（树形分组用；空 = 无小队）
 }
 
 // Syncer 接口是 api 层消费面（T06 预留；Noop 为禁用实现）。

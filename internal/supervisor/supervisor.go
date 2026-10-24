@@ -337,7 +337,7 @@ func (s *Supervisor) supervise(u *unit, gen int) {
 			u.pendingDelay = 0
 			exitDescFinal := exitDesc
 			u.mu.Unlock()
-			s.record(logs.EventExecutorCrash, u.name, "崩溃退出（"+exitDescFinal+"），restart.enabled=false 不拉起")
+			s.recordCrash(u.name, "崩溃退出（"+exitDescFinal+"），restart.enabled=false 不拉起", false)
 			return
 		}
 		delay := s.opts.Backoff.delay(u.backoffStep)
@@ -347,7 +347,7 @@ func (s *Supervisor) supervise(u *unit, gen int) {
 		u.pid = 0
 		u.cmd = nil
 		u.mu.Unlock()
-		s.record(logs.EventExecutorCrash, u.name, "崩溃退出（"+exitDesc+")"+resetNote)
+		s.recordCrash(u.name, "崩溃退出（"+exitDesc+")"+resetNote, true)
 
 		// 退避等待（人为停止可中断）
 		select {
@@ -541,6 +541,21 @@ func (s *Supervisor) SnapshotOne(name string) (UnitStatus, bool) {
 func (s *Supervisor) record(typ logs.EventType, name, detail string) {
 	if el, err := s.opts.Logs.EventLog(); err == nil {
 		_ = el.Record(typ, name, detail)
+	}
+}
+
+// recordCrash 记录崩溃事件：附是否自动拉起与该时刻日志文件定位
+// （文件标识 + 字节偏移），供详情页时间带崩溃点穿透定位。
+func (s *Supervisor) recordCrash(name, detail string, autoRestart bool) {
+	ev := logs.Event{
+		Type: logs.EventExecutorCrash, Executor: name, Detail: detail,
+		Restart: &autoRestart,
+	}
+	if file, offset := s.opts.Logs.Position(name); file != "" {
+		ev.LogFile, ev.LogOffset = file, offset
+	}
+	if el, err := s.opts.Logs.EventLog(); err == nil {
+		_ = el.RecordEvent(ev)
 	}
 }
 

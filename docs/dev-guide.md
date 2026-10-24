@@ -52,12 +52,20 @@
 | `internal/supervisor` | 执行器进程守护：spawn、进程树终止、崩溃拉起 | `supervisor.go`、`state.go`（状态机）、`npx*.go`（npx 解析）、`proc_*.go`（平台进程操作）、`connstate.go`（连接状态） | `Supervisor`、`New`、`ApplyConfig`、`StartExecutor/StopExecutor/RestartExecutor`、`Snapshot` |
 | `internal/config` | config.toml 读写校验、目录布局、热加载、token | `model.go`（Config/Executor）、`validate.go`、`toml_io.go`、`paths.go`、`watch.go`（Watcher）、`default_config.go`、`token*.go`、`daemon*.go`（daemon.json） | `Config`、`Paths`、`DefaultLayout`、`Watcher` |
 | `internal/launchcmd` | 启动命令解析/校验/重建（纯函数库，不碰进程网络） | `tokenize.go`、`argv.go`、`fields.go`（Parsed）、`render.go`（roundtrip）、`prefix.go`、`script.go`（旧脚本导入）、`archive.go` | `Parse`、`Parsed.Validate/Render`、`Argv` |
-| `internal/logs` | 日志收割滚动、事件日志、follow 订阅、过期清理 | `manager.go`（Manager）、`sink.go`、`events.go`（EventLog/掩码）、`cleaner.go`、`debug.go` | `Manager`、`NewManager`、`Tail/ReadLines/Follow`、`EventLog`、`MaskSecret` |
+| `internal/logs` | 日志收割滚动、事件日志、follow 订阅、过期清理 | `manager.go`（Manager）、`sink.go`、`events.go`（EventLog/掩码）、`cleaner.go`、`debug.go` | `Manager`、`NewManager`、`Tail/ReadLines/Follow`、`ReadEvents`、`ReadBefore`、`EventLog`、`MaskSecret` |
+| `internal/stats` | 运行统计：重放管理事件日志（含滚动链）→ 状态区间 / 崩溃点 / 数据起点（纯函数，详情时间带与二期图表共用） | `stats.go`、`doc.go` | `Replay`、`Timeline`、`Segment`、`Crash` |
 | `internal/platform` | 平台只读联动：MCP 白名单调用、轮询、漂移、归属发现 | `platform.go`（Client）、`mcp.go`、`poller.go`（Start/Refresh）、`syncer.go`（Lookup/Summary）、`drift.go`、`discovery.go` | `Client`、`Service`（poller+syncer）、`NewService` |
 | `internal/service` | 系统服务安装（systemd user / launchd / Windows 自启） | `service.go`（Platform 接口）、`systemd.go`、`launchd.go`、`startup.go` | `ForOS`、`Install/Uninstall/Status` |
 | `internal/exitcode` | 退出码常量与错误类型（0/1/2/3/4/5） | `exitcode.go` | `Error`、`New/Usagef/NotFoundf/…`、`Code(err)` |
 | `internal/version` | 版本号（ldflags 注入） | `version.go` | `Version` |
 | `internal/fakeproc` | 假长驻子进程（测试共用，TestMain 构建，不进产品） | `main.go` | `-fake-*` 控制 flag（见文件头注释） |
+
+统计与日志定位端点（一期）：
+
+- `GET /api/stats/executors/{name}/timeline?from=&to=`：`internal/api/stats.go` → `internal/stats.Replay`，
+  返回窗口、数据起止、状态区间与崩溃点（含 `locatable` 日志定位标识）。
+- `GET /api/executors/{name}/log?file=&before=&limit=`：`internal/logs.ReadBefore`，按崩溃事件定位信息读取
+  该执行器日志链内历史页（严格校验文件名，防路径穿越）；不带 file/before 时保持旧 `tail=N` 契约。
 
 ### Web 前端（`web/src/`）
 

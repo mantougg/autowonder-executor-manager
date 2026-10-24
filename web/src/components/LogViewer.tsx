@@ -57,7 +57,23 @@ function ansiToNodes(line: string): JSX.Element {
   )
 }
 
-export function LogViewer({ name, token, tail = 200 }: { name: string; token: string; tail?: number }) {
+export interface LogJump {
+  seq: number
+  lines: string[]
+  notice: string
+}
+
+export function LogViewer({
+  name,
+  token,
+  tail = 200,
+  jump = null,
+}: {
+  name: string
+  token: string
+  tail?: number
+  jump?: LogJump | null
+}) {
   const [lines, setLines] = useState<string[]>([])
   const [follow, setFollow] = useState(true)
   const [connected, setConnected] = useState(false)
@@ -67,6 +83,16 @@ export function LogViewer({ name, token, tail = 200 }: { name: string; token: st
   const totalRef = useRef(0)
   const [older, setOlder] = useState<number | null>(null) // 更早日志是否可加载
   const [loadingOlder, setLoadingOlder] = useState(false)
+
+  // 时间带崩溃点穿透：用定位到的历史页替换当前内容，并自动暂停跟随。
+  useEffect(() => {
+    if (!jump) return
+    setLines(jump.lines)
+    setFollow(false)
+    setPausedByScroll(false)
+    setOlder(null)
+    totalRef.current = 0
+  }, [jump?.seq]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     followRef.current = follow && !pausedByScroll
@@ -152,6 +178,11 @@ export function LogViewer({ name, token, tail = 200 }: { name: string; token: st
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {jump?.notice ? (
+        <div className="awem-timeline-notice" role="status">
+          {jump.notice}
+        </div>
+      ) : null}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: 'var(--awem-fg-secondary)' }}>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <input

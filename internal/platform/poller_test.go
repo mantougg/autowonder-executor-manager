@@ -45,6 +45,9 @@ func Test轮询状态变化反映到Lookup(t *testing.T) {
 	if st.Name != "NO1快速全栈开发" || st.AgentName != "快速全栈开发" || st.Project != "ws-a" || st.Squad != "标准自动化交付" {
 		t.Fatalf("归属展示字段应填充（中文名/工人/项目/小队）：%+v", st)
 	}
+	if len(st.SquadNames) != 1 || st.SquadNames[0] != "标准自动化交付" {
+		t.Fatalf("小队数组应透传（树形分组用）：%+v", st.SquadNames)
+	}
 	// 未归属本地 id → unowned（不算错误）
 	e.s.localIDs = func() []LocalExecutor {
 		return []LocalExecutor{{ExecutorID: "10086"}, {ExecutorID: "99999"}}

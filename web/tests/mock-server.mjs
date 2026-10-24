@@ -58,8 +58,8 @@ function makeExecutor(spec) {
       conn: state === 'running' ? 'connected' : 'disconnected',
       last_exit: state === 'failed' ? 'exit status 1' : undefined,
     },
-    platform: null,
-    drift: null,
+    platform: spec.platform || null,
+    drift: spec.drift || null,
   }
 }
 
@@ -73,7 +73,10 @@ function defaultState() {
     ],
     failures: {},
     actionDelayMs: 0,
+    listDelayMs: 0,
     listError: null,
+    timelines: {},
+    logs: {},
   }
 }
 
@@ -170,7 +173,10 @@ async function handleControl(req, res, url) {
     }
     if (body.failures) state.failures = body.failures
     if (typeof body.actionDelayMs === 'number') state.actionDelayMs = body.actionDelayMs
+    if (typeof body.listDelayMs === 'number') state.listDelayMs = body.listDelayMs
     if ('listError' in body) state.listError = body.listError
+    if (body.timelines) state.timelines = body.timelines
+    if (body.logs) state.logs = body.logs
     return sendJSON(res, 200, { ok: true })
   }
   if (p === '/__test__/requests' && req.method === 'GET') {
@@ -202,10 +208,58 @@ async function handleAPI(req, res, url) {
 
   if (req.method === 'GET' && p === '/api/executors') {
     record(req, url)
+    if (state.listDelayMs > 0) await sleep(state.listDelayMs)
     if (state.listError) {
       return sendError(res, state.listError.status, state.listError.code || 'error', state.listError.message)
     }
     return sendJSON(res, 200, { executors: state.executors })
+  }
+
+  const singleGet = p.match(/^\/api\/executors\/([^/]+)$/)
+  if (req.method === 'GET' && singleGet) {
+    record(req, url)
+    const name = decodeURIComponent(singleGet[1])
+    const e = findExecutor(name)
+    if (!e) return sendError(res, 404, 'not_found', `执行器 ${name} 不存在`)
+    return sendJSON(res, 200, { executor: e })
+  }
+
+  const logReq = p.match(/^\/api\/executors\/([^/]+)\/log$/)
+  if (req.method === 'GET' && logReq) {
+    record(req, url)
+    const name = decodeURIComponent(logReq[1])
+    if (!findExecutor(name)) return sendError(res, 404, 'not_found', `执行器 ${name} 不存在`)
+    const cfg = state.logs[name] || {}
+    const file = url.searchParams.get('file')
+    const before = url.searchParams.get('before')
+    if (file || before) {
+      const limit = Number(url.searchParams.get('limit') || 500)
+      const lines = (cfg.jump_lines || cfg.lines || []).slice(-limit)
+      return sendJSON(res, 200, {
+        name, file, lines,
+        start_file: file,
+        start_offset: Number(before || 0),
+        has_more: false,
+      })
+    }
+    const tail = Number(url.searchParams.get('tail') || 50)
+    return sendJSON(res, 200, { name, tail, lines: (cfg.lines || []).slice(-tail) })
+  }
+
+  const timelineReq = p.match(/^\/api\/stats\/executors\/([^/]+)\/timeline$/)
+  if (req.method === 'GET' && timelineReq) {
+    record(req, url)
+    const name = decodeURIComponent(timelineReq[1])
+    if (!findExecutor(name)) return sendError(res, 404, 'not_found', `执行器 ${name} 不存在`)
+    const injected = state.timelines[name] || {
+      data_start: null, data_end: null, segments: [], crashes: [],
+    }
+    return sendJSON(res, 200, {
+      name,
+      from: url.searchParams.get('from'),
+      to: url.searchParams.get('to'),
+      ...injected,
+    })
   }
 
   const action = p.match(/^\/api\/executors\/([^/]+)\/(start|stop|restart)$/)
