@@ -1,6 +1,6 @@
 # T08 · 平台状态联动（只读）
 
-- **子任务状态**：⬜ 未开始
+- **子任务状态**：🔄 进行中
 - **前置依赖**：T02（[platform] 配置）、T03（本地解析字段）、T06（注入 API/状态数据）
 - **设计依据**：[design.md](../design/design.md) §7（平台状态联动）、决策 #2/#9、附录 A（MCP 通道事实）
 - **产物范围**：`internal/platform/`（MCP 只读客户端、归属发现、状态轮询、漂移检测）
@@ -18,8 +18,8 @@
 
 ### F1 · MCP 只读客户端
 
-- **开发状态**：⬜ 未开始
-- **检查状态**：⬜ 未检查
+- **开发状态**：✅ 已检查
+- **检查状态**：✅ 通过
 - **开发描述**：Streamable HTTP JSON-RPC 客户端：`POST <mcp-url>`（mcp-url 由 base_url + 令牌推导，规则对齐平台帮助/附录 A，实施时以真实环境验证并记录）；工具名为**点号前缀**（`autowonder.list_projects`）；支持 initialize 握手与会话头（按 MCP 规范 Streamable HTTP，实现细节记录）；超时、重试与错误分类（网络失败/权限不足/工具不存在）。mcp_token 与 base_url 来自 T02 配置，热加载生效。
 - **验收要点**：
   - 假 MCP 服务（httptest）单测：正常响应、超时、错误响应三路径；
@@ -81,7 +81,7 @@
 
 | 日期 | 功能点 | 结果 | 问题与处理 |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-10-25 | F1 | ✅ 通过 | 实跑 `go test ./internal/platform/ -count=1`（4 用例）：TestMCP正常链路与会话头（多空间/执行器/心跳解析；工具名点号前缀经假服务调用记录断言；initialize 恰好一次）、TestMCP错误响应与权限分类（JSON-RPC permission 错误与 HTTP 401 均 IsPermissionErr；未知工具为一般错误）、TestMCP超时（ctx 超时返回错误）、TestMCP_SSE响应形态（text/event-stream data: 行可解析）。全仓三绿。 |
 
 ## 变更记录
 

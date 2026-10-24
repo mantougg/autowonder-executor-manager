@@ -29,7 +29,7 @@
 | T05 | Supervisor 进程守护 | T02、T03、T04 | 7/7 | ✅ 已检查 | [t05-supervisor.md](t05-supervisor.md) |
 | T06 | daemon 与本地 API | T02、T04、T05 | 7/7 | ✅ 已检查 | [t06-daemon-api.md](t06-daemon-api.md) |
 | T07 | CLI 子命令集 | T03、T05、T06 | 10/10 | ✅ 已检查 | [t07-cli.md](t07-cli.md) |
-| T08 | 平台状态联动（只读） | T02、T03、T06 | 0/6 | ⬜ 未开始 | [t08-platform-sync.md](t08-platform-sync.md) |
+| T08 | 平台状态联动（只读） | T02、T03、T06 | 1/6 | 🔄 进行中 | [t08-platform-sync.md](t08-platform-sync.md) |
 | T09 | Web SPA | T03、T06、T08 | 0/8 | ⬜ 未开始 | [t09-web-spa.md](t09-web-spa.md) |
 | T10 | 系统服务与跨平台专项 | T06、T07 | 0/6 | ⬜ 未开始 | [t10-service-cross-platform.md](t10-service-cross-platform.md) |
 | T11 | 打包分发与 Agent 文档 | T01–T10 | 0/4 | ⬜ 未开始 | [t11-release-docs.md](t11-release-docs.md) |
@@ -114,3 +114,5 @@
 | 2026-10-25 | T07-F8 ✅ | awem import：预览/改名确认/批量导入/--with-logs 归档/--json 汇总（44/71） |
 | 2026-10-25 | T07-F9 ✅ | awem doctor：Node/npx/provider CLI/磁盘/平台占位五项体检（45/71） |
 | 2026-10-25 | T07-F10 ✅ + 子任务 ✅ | reload/version 收口、退出码矩阵与 --json schema 汇总表；T07 全部 10 功能点 ✅（46/71），已推送 |
+| 2026-10-25 | T08 开工 | 子任务状态 ⬜→🔄 |
+| 2026-10-25 | T08-F1 ✅ | MCP 只读客户端：握手/点号工具/错误分类/SSE（47/71）；端点路径与响应字段待真实环境验证 |

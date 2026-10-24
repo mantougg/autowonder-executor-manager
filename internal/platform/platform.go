@@ -7,7 +7,7 @@ import "time"
 
 // Status 是单个执行器的平台侧状态快照（与本地进程状态并列展示，design §6）。
 type Status struct {
-	State         string     // ONLINE / BUSY / OFFLINE（空=未知/未联动）
+	State         string    // ONLINE / BUSY / OFFLINE（空=未知/未联动）
 	LastHeartbeat time.Time // 平台侧最近心跳（零值=未知）
 }
 
