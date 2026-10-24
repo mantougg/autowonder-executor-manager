@@ -161,6 +161,63 @@ func Test同目录其他文件事件被忽略(t *testing.T) {
 	}
 }
 
+// TestReload内容未变跳过发布 T06-F2：写回等"磁盘与内存等价"的重载不发布
+// （不触发订阅者、不产生多余 config_changed 语义）；真实变更仍发布。
+func TestReload内容未变跳过发布(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	c0 := Default()
+	c0.Server.Port = 0
+	if err := Save(path, c0); err != nil {
+		t.Fatal(err)
+	}
+	w := NewWatcher(path, c0)
+
+	var mu sync.Mutex
+	var got []Config
+	w.Subscribe(func(c Config) { mu.Lock(); got = append(got, c); mu.Unlock() })
+
+	// 磁盘重写等价内容（模拟写回后的文件监视触发）：执行了重载但未发布
+	if err := Save(path, c0); err != nil {
+		t.Fatal(err)
+	}
+	w.Reload()
+	if w.ReloadCount() != 1 || w.PublishedCount() != 0 {
+		t.Fatalf("等价内容应重载 1 次发布 0 次，实际 %d/%d", w.ReloadCount(), w.PublishedCount())
+	}
+
+	// SetCurrent 同步内存（写回路径）后，磁盘已是新内容 → 等价跳过
+	c1 := c0
+	c1.Server.Port = 8080
+	if err := Save(path, c1); err != nil {
+		t.Fatal(err)
+	}
+	w.SetCurrent(c1)
+	w.Reload()
+	if w.PublishedCount() != 0 {
+		t.Fatalf("SetCurrent 同步后等价重载不应发布，实际发布 %d 次", w.PublishedCount())
+	}
+	if w.Current().Server.Port != 8080 {
+		t.Fatal("SetCurrent 应更新内存配置")
+	}
+
+	// 真实外部变更（内存未同步）：发布
+	c2 := c1
+	c2.Server.Port = 9090
+	if err := Save(path, c2); err != nil {
+		t.Fatal(err)
+	}
+	w.Reload()
+	if w.PublishedCount() != 1 {
+		t.Fatalf("真实变更应发布，实际 %d 次", w.PublishedCount())
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) != 1 || got[0].Server.Port != 9090 {
+		t.Fatalf("订阅者应只收到 port=9090，实际 %+v", got)
+	}
+}
+
 // Test真实文件监视端到端 真正走 Start + fsnotify：改文件→订阅者收到新配置。
 func Test真实文件监视端到端(t *testing.T) {
 	dir := t.TempDir()

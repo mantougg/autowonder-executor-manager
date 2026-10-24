@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -68,19 +69,15 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	defer a.close()
 
-	// 写元数据与启动事件（失败不致命：daemon.json 写失败时 CLI 惰性拉起
-	// 将探活失败，记事件提示即可）
-	if err := config.WriteDaemonInfo(p, config.DaemonInfo{PID: os.Getpid(), Port: a.cfg.Server.Port}); err != nil {
-		a.eventf(logs.EventDaemonStart, "", "daemon.json 写入失败（不影响运行）："+err.Error())
-	} else {
-		a.eventf(logs.EventDaemonStart, "",
-			fmt.Sprintf("awem %s 启动（pid %d，port %d，执行器 %d 个）",
-				version.Version, os.Getpid(), a.cfg.Server.Port, len(a.cfg.Executors)))
-	}
+	// 写元数据与清理收口在 serve 内（拿到实际监听端口后）；退出清理由
+	// 此 defer 兜底（serve 正常返回前也会清理，ClearDaemonInfo 幂等）
 	defer func() { _ = config.ClearDaemonInfo(p) }()
 
 	// 首份配置注入 supervisor（autostart 条目随即拉起，T05 F4）
 	a.applyConfig(a.cfg)
+
+	// 文件监视热加载（design §5.1；写回端口等外部变更由 Reload 统一处理）
+	go func() { _ = a.watcher.Start(ctx) }()
 
 	return a.serve(ctx)
 }
@@ -127,13 +124,56 @@ func (a *app) applyConfig(c config.Config) {
 	a.sup.ApplyConfig(&cc)
 }
 
-// serve 是 daemon 的服务主循环。T06-F1 仅等待退出信号；
-// F2 起在此挂载本地 HTTP API。
+// serve 是 daemon 的服务主循环：监听本地 API（port=0 写回，F2）→
+// 写 daemon.json（实际端口）→ 记启动事件 → HTTP 服务直到 ctx 取消 →
+// 优雅收口。
 func (a *app) serve(ctx context.Context) error {
+	ln, cfg, err := listenWithWriteBack(a.paths, a.cfg, func(detail string) {
+		a.eventf(logs.EventDaemonStart, "", detail)
+	})
+	if err != nil {
+		return err
+	}
+	defer ln.Close()
+	if cfg.Server.Port != a.cfg.Server.Port {
+		// 端口已写回：同步内存与 watcher，抑制文件监视触发的等价重载
+		a.cfg = cfg
+		a.watcher.SetCurrent(cfg)
+	}
+
+	// 元数据用实际端口写入；写失败不致命（CLI 探活失败，记事件提示）
+	if err := config.WriteDaemonInfo(a.paths, config.DaemonInfo{PID: os.Getpid(), Port: a.cfg.Server.Port}); err != nil {
+		a.eventf(logs.EventDaemonStart, "", "daemon.json 写入失败（不影响运行）："+err.Error())
+	}
+	a.eventf(logs.EventDaemonStart, "",
+		fmt.Sprintf("awem %s 启动（pid %d，port %d，执行器 %d 个）",
+			version.Version, os.Getpid(), a.cfg.Server.Port, len(a.cfg.Executors)))
+
+	srv := &http.Server{Handler: a.httpHandler()}
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- srv.Serve(ln) }()
 	a.startedAt = time.Now()
-	<-ctx.Done()
-	a.eventf(logs.EventDaemonStop, "", "收到退出信号，daemon 收口中")
-	return nil
+
+	select {
+	case <-ctx.Done():
+		a.eventf(logs.EventDaemonStop, "", "收到退出信号，daemon 收口中")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+		<-serveErr
+		return nil
+	case err := <-serveErr:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("HTTP 服务异常退出：%w", err)
+		}
+		return nil
+	}
+}
+
+// httpHandler 返回本地 API 的 HTTP 路由（REST/WS/静态资源与鉴权见 F3–F5/F7；
+// 此处为 F2 的占位骨架）。
+func (a *app) httpHandler() http.Handler {
+	return http.NewServeMux()
 }
 
 // close 释放全部组件（defer 调用，幂等由各组件保证）。

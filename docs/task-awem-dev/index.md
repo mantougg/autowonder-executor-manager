@@ -27,7 +27,7 @@
 | T03 | 启动命令解析与导入 | T01 | 6/6 | ✅ 已检查 | [t03-launch-command-parser.md](t03-launch-command-parser.md) |
 | T04 | 日志系统 | T01、T02 | 6/6 | ✅ 已检查 | [t04-logging.md](t04-logging.md) |
 | T05 | Supervisor 进程守护 | T02、T03、T04 | 7/7 | ✅ 已检查 | [t05-supervisor.md](t05-supervisor.md) |
-| T06 | daemon 与本地 API | T02、T04、T05 | 1/7 | 🔄 进行中 | [t06-daemon-api.md](t06-daemon-api.md) |
+| T06 | daemon 与本地 API | T02、T04、T05 | 2/7 | 🔄 进行中 | [t06-daemon-api.md](t06-daemon-api.md) |
 | T07 | CLI 子命令集 | T03、T05、T06 | 0/10 | ⬜ 未开始 | [t07-cli.md](t07-cli.md) |
 | T08 | 平台状态联动（只读） | T02、T03、T06 | 0/6 | ⬜ 未开始 | [t08-platform-sync.md](t08-platform-sync.md) |
 | T09 | Web SPA | T03、T06、T08 | 0/8 | ⬜ 未开始 | [t09-web-spa.md](t09-web-spa.md) |
@@ -97,3 +97,4 @@
 | 2026-10-25 | T05-F7 ✅ + 子任务 ✅ | 冒烟套件一键全绿（-count=3 稳定、~0.9s、无残留进程）；T05 全部 7 功能点 ✅（29/71），已推送 |
 | 2026-10-25 | T06 开工 | 子任务状态 ⬜→🔄；新增 AWEM_CONFIG_DIR 测试隔离环境变量 |
 | 2026-10-25 | T06-F1 ✅ | daemon 生命周期与单实例锁：文件锁互斥/强杀可重启/daemon.json 启停（30/71） |
+| 2026-10-25 | T06-F2 ✅ | 端口绑定与自动写回：port=0 写回 config、等价重载抑制、文件监视常驻（31/71） |
