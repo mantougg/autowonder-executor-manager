@@ -8,9 +8,13 @@
 
 ## 当前状态
 
-- **设计已定稿（2026-10-24），尚未开始编码。**
+- **v1 功能开发完成（2026-10-25）：70/71 功能点检查通过**，实时进度见
+  [docs/task-awem-dev/index.md](docs/task-awem-dev/index.md)。余量：T10 的
+  macOS/Windows 真机验证（⏸️）、T11-F4 十六条决策核对表待用户复核。
 - 唯一设计基准：[docs/design/design.md](docs/design/design.md)（16 条核心决策 + D1–D10 默认项，全部经用户确认）。
 - **实现与设计文档冲突时，先改文档、征得用户同意，再改代码。**
+- 推进开发/检查用 `awem-dev` 技能（`.agents/skills/awem-dev/`）；全链路冒烟
+  `scripts/smoke.sh`；发布打 `v*` tag 触发 workflow。
 
 ## 文档约定
 
