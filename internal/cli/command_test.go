@@ -1,8 +1,13 @@
 package cli
 
 import (
+	"encoding/json"
+	"io"
+	"os"
 	"strings"
 	"testing"
+
+	"awem/internal/exitcode"
 )
 
 func TestExtractGlobalFlags(t *testing.T) {
@@ -129,6 +134,61 @@ func TestDispatch(t *testing.T) {
 			t.Fatalf("退出码 = %d，期望 1", code)
 		}
 	})
+	t.Run("类型化错误映射到对应退出码", func(t *testing.T) {
+		r := NewRegistry()
+		r.Register(&Command{
+			Name: "nf",
+			Run: func(g GlobalFlags, args []string) error {
+				return exitcode.NotFoundf("执行器 %s 不存在", "demo")
+			},
+		})
+		if code := r.Dispatch([]string{"nf"}); code != exitcode.NotFound {
+			t.Fatalf("退出码 = %d，期望 3", code)
+		}
+	})
+	t.Run("json模式下错误输出为合法JSON", func(t *testing.T) {
+		r := NewRegistry()
+		r.Register(&Command{
+			Name: "dup",
+			Run: func(g GlobalFlags, args []string) error {
+				return exitcode.AlreadyExistsf("执行器 demo 已存在")
+			},
+		})
+		if code := r.Dispatch([]string{"--json", "dup"}); code != exitcode.AlreadyExists {
+			t.Fatalf("退出码 = %d，期望 4", code)
+		}
+	})
+}
+
+// TestJSON错误输出合法JSON 捕获 writeError 的真实 stdout 输出并解析校验。
+func TestJSON错误输出合法JSON(t *testing.T) {
+	old := os.Stdout
+	rPipe, wPipe, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("创建管道失败：%v", err)
+	}
+	os.Stdout = wPipe
+	writeError(true, exitcode.Usagef("缺少参数"))
+	wPipe.Close()
+	os.Stdout = old
+
+	raw, _ := io.ReadAll(rPipe)
+	if !json.Valid(raw) {
+		t.Fatalf("输出不是合法 JSON：%s", raw)
+	}
+	var parsed struct {
+		Error struct {
+			Code    int    `json:"code"`
+			Type    string `json:"type"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatalf("JSON 解析失败：%v，原文：%s", err, raw)
+	}
+	if parsed.Error.Code != exitcode.Usage || parsed.Error.Type != "usage" || parsed.Error.Message != "缺少参数" {
+		t.Fatalf("JSON 错误结构不符：%+v", parsed.Error)
+	}
 }
 
 type errForTest struct{}

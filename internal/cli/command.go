@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
+
+	"awem/internal/exitcode"
 )
 
 // GlobalFlags 是从命令行任意位置抽出的全局 flag，透传给所有子命令。
@@ -15,10 +18,10 @@ type GlobalFlags struct {
 // Command 描述一个可注册的子命令。Run 为 nil 表示"占位注册、尚未实现"，
 // 调用时统一报"未实现"并退出码 1。
 type Command struct {
-	Name    string                                // 子命令名（如 version）
-	Summary string                                // 一句话中文说明（用于 usage）
-	Usage   string                                // 用法行（如 awem log <名称> [-f] [--lines N]）
-	Run     func(g GlobalFlags, args []string) error // 实际执行逻辑，args 为去掉全局 flag 与子命令名后的剩余参数
+	Name    string                                  // 子命令名（如 version）
+	Summary string                                  // 一句话中文说明（用于 usage）
+	Usage   string                                  // 用法行（如 awem log <名称> [-f] [--lines N]）
+	Run     func(g GlobalFlags, args []string) error // 实际执行逻辑；报错须用 internal/exitcode 类型包装
 }
 
 // Registry 管理全部子命令的注册与分发。
@@ -86,43 +89,65 @@ func (r *Registry) Usage() string {
 }
 
 // Dispatch 解析 argv 并执行对应子命令，返回退出码
-// （0 成功 / 1 一般错误 / 2 用法错误，完整映射见 internal/exitcode）。
-// 输出固定写到 stderr、stdout 由各子命令控制。
+// （internal/exitcode：0 成功 / 1 一般 / 2 用法 / 3 未找到 / 4 已存在 / 5 daemon 未运行）。
+// 文本模式诊断到 stderr、正常输出到 stdout；--json 模式错误结构到 stdout。
 func (r *Registry) Dispatch(argv []string) int {
 	g, rest := extractGlobalFlags(argv)
 
 	if len(rest) == 0 || rest[0] == "help" || rest[0] == "--help" || rest[0] == "-h" {
-		fmt.Fprint(os.Stderr, r.Usage())
 		if len(rest) == 0 {
-			return 2 // 缺少子命令 = 用法错误
+			writeError(g.JSON, exitcode.Usagef("缺少子命令"))
+			if !g.JSON {
+				fmt.Fprint(os.Stderr, r.Usage())
+			}
+			return exitcode.Usage
 		}
-		return 0 // 显式 help 成功
+		if !g.JSON {
+			fmt.Fprint(os.Stderr, r.Usage())
+		}
+		return exitcode.Success
 	}
 
 	name := rest[0]
 	cmd, ok := r.commands[name]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "未知子命令：%s\n\n%s", name, r.Usage())
-		return 2
+		writeError(g.JSON, exitcode.Usagef("未知子命令：%s", name))
+		if !g.JSON {
+			fmt.Fprint(os.Stderr, "\n"+r.Usage())
+		}
+		return exitcode.Usage
 	}
 
 	if cmd.Run == nil {
-		writeError(g.JSON, fmt.Errorf("子命令 %q 尚未实现", name))
-		return 1
+		err := exitcode.Generalf("子命令 %q 尚未实现", name)
+		writeError(g.JSON, err)
+		return exitcode.Code(err)
 	}
 
 	if err := cmd.Run(g, rest[1:]); err != nil {
 		writeError(g.JSON, err)
-		return 1 // T01-F3 将引入错误类型到退出码的完整映射
+		return exitcode.Code(err)
 	}
-	return 0
+	return exitcode.Success
 }
 
-// writeError 统一输出错误：文本模式中文前缀到 stderr；--json 模式输出
-// 合法 JSON（schema 由 T01-F3 定稿）。
+// writeError 统一输出错误。--json 模式输出
+// {"error":{"code":N,"type":"…","message":"…"}}（合法 JSON、schema 稳定）到
+// stdout；文本模式输出"错误：…"到 stderr。
 func writeError(jsonMode bool, err error) {
 	if jsonMode {
-		fmt.Fprintf(os.Stdout, "{\"error\":%q}\n", err.Error())
+		out, mErr := json.Marshal(map[string]any{
+			"error": map[string]any{
+				"code":    exitcode.Code(err),
+				"type":    exitcode.Type(err),
+				"message": err.Error(),
+			},
+		})
+		if mErr != nil {
+			fmt.Fprintf(os.Stderr, "错误：%v\n", err)
+			return
+		}
+		fmt.Println(string(out))
 		return
 	}
 	fmt.Fprintln(os.Stderr, "错误："+err.Error())
