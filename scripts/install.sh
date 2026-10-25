@@ -7,7 +7,7 @@
 #   curl -fsSL <repo>/install.sh | sh -s -- v0.1.0 <ghproxy镜像前缀>  # 镜像加速
 set -eu
 
-REPO="mantougg/autowonder-executor-manager"
+REPO="mantougg/awem"
 VERSION="${1:-latest}"
 MIRROR="${2:-}" # 如 https://ghproxy.example.com/https://github.com（空=直连）
 

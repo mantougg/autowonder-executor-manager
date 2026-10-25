@@ -5,7 +5,8 @@ description: 执行与推进 awem（AutoWonder Executor Manager）的开发任�
 
 # awem 开发任务执行
 
-仓库：`autowonder-executor-manager`（Go 单二进制 + React SPA）。开发任务计划与全部状态落在
+仓库：`awem`（Go 单二进制 + React SPA；2026-10-25 由 `autowonder-executor-manager` 改名，
+GitHub 旧名自动重定向）。开发任务计划与全部状态落在
 `docs/task-awem-dev/`（1 个索引 + 11 个子任务 + 1 个共享规范）。本技能的职责：**按计划推进开发，并让任务状态文档始终反映真实进度**。
 
 ## 固定流程（每次触发都从第 1 步开始，不凭记忆）

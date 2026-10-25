@@ -309,7 +309,8 @@ awem version
 
 ## 16. 工程约定（D10）
 
-- Go 单 module，仓库名保持 `autowonder-executor-manager`，二进制/包名 `awem`。
+- Go 单 module，仓库名 `awem`（2026-10-25 由 `autowonder-executor-manager` 改名，与二进制/产物名对应；
+  GitHub 旧名自动重定向），二进制/包名 `awem`。
 - 预期目录：`cmd/awem/`（入口）、`internal/`（supervisor、config、platform、api、logs…）、`web/`（React SPA 源码，构建产物 embed）。
 - 测试：单测覆盖命令解析/import/守护状态机；冒烟测试用假长驻子进程（启停/崩溃拉起/日志收割）。
 - 文档：代码注释与文档中文，标识符英文。

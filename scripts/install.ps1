@@ -4,7 +4,7 @@
 #   & .\install.ps1 -Version v0.1.0                                   # 指定版本
 param(
   [string]$Version = "latest",
-  [string]$Repo = "mantougg/autowonder-executor-manager"
+  [string]$Repo = "mantougg/awem"
 )
 
 $ErrorActionPreference = "Stop"
