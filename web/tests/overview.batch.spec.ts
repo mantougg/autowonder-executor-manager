@@ -59,6 +59,38 @@ test.describe('@batch 总览页多选批量操作', () => {
     await expect(bulkBar(page)).toHaveCount(0)
   })
 
+  test('批量条并入工具行：出现/消失不改变工具行高度与表格位置', async ({ page }) => {
+    await gotoOverview(page)
+    // 无归属数据（默认 4 台无 platform）时工具行也常驻
+    const toolbar = page.locator('.awem-table-toolbar')
+    await expect(toolbar).toBeVisible()
+
+    const geometry = () => page.evaluate(() => {
+      const bar = document.querySelector('.awem-table-toolbar')!
+      const wrap = document.querySelector('.awem-table-wrap')!
+      return {
+        toolbarY: bar.getBoundingClientRect().y,
+        toolbarH: bar.getBoundingClientRect().height,
+        tableY: wrap.getBoundingClientRect().y,
+      }
+    })
+    const before = await geometry()
+
+    await rowCheckbox(page, 'Beta').check()
+    await expect(bulkBar(page)).toBeVisible()
+    const during = await geometry()
+    expect(during.toolbarY).toBe(before.toolbarY)
+    expect(during.toolbarH).toBe(before.toolbarH)
+    expect(during.tableY).toBe(before.tableY)
+
+    await bulkBar(page).getByRole('button', { name: '取消选择' }).click()
+    await expect(bulkBar(page)).toHaveCount(0)
+    const after = await geometry()
+    expect(after.toolbarY).toBe(before.toolbarY)
+    expect(after.toolbarH).toBe(before.toolbarH)
+    expect(after.tableY).toBe(before.tableY)
+  })
+
   test('批量条显隐与取消选择', async ({ page }) => {
     await gotoOverview(page)
     await expect(bulkBar(page)).toHaveCount(0)

@@ -102,6 +102,41 @@ test.describe('@views 总览展示改造', () => {
     await expect(page.getByRole('group', { name: '展示方式' })).toHaveCount(0)
   })
 
+  test('联动 11 列在 1440 视口无横向溢出，操作列完整可见', async ({ page, request }) => {
+    // 名称/项目/小队取接近生产数据的长度：表格自然宽约 1180px，1200px 内容区会裁掉操作列
+    await setMock(request, {
+      executors: [
+        'awem 前端机-01', 'awem 前端机-02', 'awem 后端机-01', 'awem 观测机-01',
+      ].map((name, i) => ({
+        name: `exec-1000${i}`,
+        state: i % 2 ? 'running' : 'stopped',
+        model: 'dfmodel',
+        platform: {
+          status: i % 2 ? 'ONLINE' : 'OFFLINE',
+          name,
+          agent_name: `数字工人-${i}`,
+          project: i % 2 ? 'git-workspace' : 'autowonder-executor-manager',
+          squad: '后端与观测小队',
+        },
+      })),
+    })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await gotoOverview(page)
+
+    const m = await page.evaluate(() => {
+      const wrap = document.querySelector('.awem-table-wrap') as HTMLElement
+      const actions = wrap.querySelector('.awem-row-actions') as HTMLElement | null
+      const lastBtn = actions?.querySelector('button:last-child') as HTMLElement | null
+      return {
+        overflowPx: wrap.scrollWidth - wrap.clientWidth,
+        lastActionRight: lastBtn ? lastBtn.getBoundingClientRect().right : 0,
+        wrapRight: wrap.getBoundingClientRect().right,
+      }
+    })
+    expect(m.overflowPx, '联动 11 列应整体放入内容区，无需横向滚动').toBeLessThanOrEqual(0)
+    expect(m.lastActionRight, '操作列最后一个按钮应完整可见').toBeLessThanOrEqual(m.wrapRight)
+  })
+
   test('树形分组：项目/小队/重复叶子/未分配小队/未归属最后/在线徽标/默认展开', async ({ page, request }) => {
     await setTree(request)
     await gotoOverview(page)

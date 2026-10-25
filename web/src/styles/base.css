@@ -59,7 +59,8 @@ body {
 .awem-main {
   flex: 1;
   width: 100%;
-  max-width: 1200px;
+  /* 1440：总览联动 11 列自然宽约 1240px，1200 时操作列被横向滚动裁切 */
+  max-width: 1440px;
   margin: 0 auto;
   padding: var(--awem-space-6);
 }

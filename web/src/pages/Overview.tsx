@@ -592,7 +592,8 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
 
   const tree = useMemo(() => buildTree(rows ?? []), [rows])
   const columnCount = linked ? 12 : 10
-  const showToolbar = rows !== null && !error && rows.length > 0 && hasOwnership
+  // 工具行在列表非空时常驻（无归属数据也保留，仅隐藏平铺/树形切换）
+  const showToolbar = rows !== null && !error && rows.length > 0
 
   return (
     <div className="awem-page">
@@ -621,32 +622,6 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
       </div>
 
       <div role="tabpanel" id="tabpanel-list" aria-labelledby="tab-list">
-        {selected.size > 0 && rows && rows.length > 0 ? (
-          <div className="awem-bulk-bar" role="group" aria-label={t.batch.barLabel}>
-            <span className="awem-bulk-count">{t.batch.selected(selected.size)}</span>
-            <button
-              className="awem-btn awem-btn-secondary awem-btn-compact"
-              disabled={locked}
-              onClick={startSelected}
-            >{t.batch.action.start}</button>
-            <button
-              className="awem-btn awem-btn-secondary awem-btn-compact"
-              disabled={locked}
-              onClick={stopSelected}
-            >{t.batch.action.stop}</button>
-            <button
-              className="awem-btn awem-btn-danger awem-btn-compact"
-              disabled={locked}
-              onClick={deleteSelected}
-            >{t.batch.action.delete}</button>
-            <button
-              className="awem-btn awem-btn-ghost awem-btn-compact"
-              disabled={locked}
-              onClick={() => setSelected(new Set())}
-            >{t.batch.clear}</button>
-          </div>
-        ) : null}
-
         {rows === null ? (
           <div className="awem-table-wrap" aria-busy="true">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 4 }}>
@@ -667,17 +642,47 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
           </div>
         ) : (
           <>
+            {/* 工具行常驻（行高锁定 32px）：无选中显示计数提示，有选中切换为批量操作条，
+                避免批量条出现/消失把表格顶上顶下；平铺/树形切换无归属数据时隐藏 */}
             {showToolbar ? (
               <div className="awem-table-toolbar">
-                <span className="awem-hint">共 {rowCount} 个执行器</span>
-                <div className="awem-segmented" role="group" aria-label={t.views.label}>
-                  <button type="button" aria-pressed={mode === 'flat'} onClick={() => setMode('flat')}>
-                    {t.views.flat}
-                  </button>
-                  <button type="button" aria-pressed={mode === 'tree'} onClick={() => setMode('tree')}>
-                    {t.views.tree}
-                  </button>
-                </div>
+                {selected.size > 0 ? (
+                  <div className="awem-bulk-bar" role="group" aria-label={t.batch.barLabel}>
+                    <span className="awem-bulk-count">{t.batch.selected(selected.size)}</span>
+                    <button
+                      className="awem-btn awem-btn-secondary awem-btn-compact"
+                      disabled={locked}
+                      onClick={startSelected}
+                    >{t.batch.action.start}</button>
+                    <button
+                      className="awem-btn awem-btn-secondary awem-btn-compact"
+                      disabled={locked}
+                      onClick={stopSelected}
+                    >{t.batch.action.stop}</button>
+                    <button
+                      className="awem-btn awem-btn-danger awem-btn-compact"
+                      disabled={locked}
+                      onClick={deleteSelected}
+                    >{t.batch.action.delete}</button>
+                    <button
+                      className="awem-btn awem-btn-ghost awem-btn-compact"
+                      disabled={locked}
+                      onClick={() => setSelected(new Set())}
+                    >{t.batch.clear}</button>
+                  </div>
+                ) : (
+                  <span className="awem-hint">共 {rowCount} 个执行器</span>
+                )}
+                {hasOwnership ? (
+                  <div className="awem-segmented" role="group" aria-label={t.views.label}>
+                    <button type="button" aria-pressed={mode === 'flat'} onClick={() => setMode('flat')}>
+                      {t.views.flat}
+                    </button>
+                    <button type="button" aria-pressed={mode === 'tree'} onClick={() => setMode('tree')}>
+                      {t.views.tree}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
             <div className="awem-table-wrap">

@@ -164,18 +164,13 @@
   cursor: not-allowed;
 }
 
-/* 批量操作条（有选中项时显示在标题行与表格之间） */
+/* 批量操作条（并入工具行左侧：有选中项时替换「共 N 个执行器」提示） */
 .awem-bulk-bar {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--awem-space-2);
-  padding: var(--awem-space-2) var(--awem-space-3);
-  background: var(--awem-bg-subtle);
-  border: 1px solid var(--awem-border);
-  border-radius: var(--awem-radius-card);
 }
 .awem-bulk-count {
-  margin-right: auto;
   font-size: var(--awem-text-13);
   color: var(--awem-fg-secondary);
 }
@@ -434,6 +429,8 @@
   justify-content: space-between;
   gap: var(--awem-space-3);
   margin-bottom: var(--awem-space-2);
+  /* 行高锁定 32px：左侧计数提示 ⇄ 批量操作条切换不顶动下方表格 */
+  min-height: 32px;
 }
 .awem-segmented {
   display: inline-flex;
