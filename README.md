@@ -162,5 +162,6 @@ git tag v0.1.0 && git push origin v0.1.0
 ## 关联
 
 - [LinuxDo](https://linux.do/)
+- LinuxDo 开源推广帖：[awem 推广主题](https://linux.do/t/topic/3077858)
 
 - 上游开源镜像与运行时文档：[aliyun/alibabacloud-landing-zone · ai-sdlc/auto-wonder](https://github.com/aliyun/alibabacloud-landing-zone/tree/master/ai-sdlc/auto-wonder)

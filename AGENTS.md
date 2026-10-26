@@ -102,5 +102,5 @@ platform 只读轮询平台 ONLINE/BUSY/OFFLINE + 漂移检测。
 
 - 上游开源镜像与运行时文档：https://github.com/aliyun/alibabacloud-landing-zone/tree/master/ai-sdlc/auto-wonder
   （`docs/runtime-usage.md`、`docs/scheduler-executor-protocol.md`）
-- 联动接入技能（独立仓库，不在本仓库内）：`~/.agents/skills/autowonder-project-onboarding`
+- 联动接入技能（本仓库 `skills/autowonder-project-onboarding/`，可用 `npx skills` 安装）
   （执行器纳管已切换为 awem：`awem add/start` 上线、`awem import` 迁移旧脚本）
