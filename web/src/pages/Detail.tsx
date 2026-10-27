@@ -150,14 +150,19 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
   const p = view.parsed
   return (
     <div className="awem-page">
+      {/* 标题行：平台中文名为主标题（左），等宽标识名 hint（右）；无平台数据时回退等宽标识名标题 */}
       <div className="awem-page-header">
-        <h1 className="awem-page-title mono">{view.name}</h1>
         {view.platform?.name ? (
-          <span className="awem-hint" style={{ fontSize: 15 }}>
-            {view.platform.name}
-            {view.platform.agent_name && view.platform.agent_name !== view.platform.name ? `（${view.platform.agent_name}）` : ''}
-          </span>
-        ) : null}
+          <>
+            <h1 className="awem-page-title">
+              {view.platform.name}
+              {view.platform.agent_name && view.platform.agent_name !== view.platform.name ? `（${view.platform.agent_name}）` : ''}
+            </h1>
+            <span className="awem-hint mono" style={{ fontSize: 15 }}>{view.name}</span>
+          </>
+        ) : (
+          <h1 className="awem-page-title mono">{view.name}</h1>
+        )}
       </div>
 
       {/* 一屏左右分栏：左列 进程卡片 → 运行时间带 →（漂移明细）→ 日志卡片；右列 编辑卡片 */}
@@ -214,7 +219,7 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
               <label>推理力度（reasoning-effort）</label>
               <input className="awem-input mono" value={form.reasoning_effort} onChange={(e) => setForm({ ...form, reasoning_effort: e.target.value })} />
             </div>
-            <div className="awef-field awem-field">
+            <div className="awem-field">
               <label>上下文窗口（context-window）</label>
               <input className="awem-input mono" value={form.context_window} onChange={(e) => setForm({ ...form, context_window: e.target.value })} />
             </div>

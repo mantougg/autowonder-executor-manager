@@ -58,8 +58,9 @@ test.describe('@baseline 详情页旧行为', () => {
     })
     await gotoDetail(page, 'Alpha')
 
-    await expect(page.getByRole('heading', { name: 'Alpha' })).toBeVisible()
-    await expect(page.getByText('甲执行器（数字工人甲）')).toBeVisible()
+    // 标题行：中文名为主标题（左），等宽标识名 hint（右）
+    await expect(page.getByRole('heading', { name: '甲执行器（数字工人甲）' })).toBeVisible()
+    await expect(page.locator('.awem-page-header').getByText('Alpha', { exact: true })).toBeVisible()
     await expect(page.getByText('平台：ONLINE')).toBeVisible()
     await expect(page.getByText('所属项目 项目甲')).toBeVisible()
     await expect(page.getByText('所属小队 小队甲')).toBeVisible()

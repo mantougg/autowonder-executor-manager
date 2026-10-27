@@ -116,10 +116,10 @@ export async function gotoOverview(page: Page) {
   await expect(page.getByRole('heading', { name: '总览' })).toBeVisible()
 }
 
-/** 打开执行器详情页并等待标题（标识名）。 */
+/** 打开执行器详情页并等待标题行出现标识名（主标题或右侧 hint）。 */
 export async function gotoDetail(page: Page, name: string) {
   await page.goto(`/executors/${encodeURIComponent(name)}`)
-  await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(page.locator('.awem-page-header').getByText(name, { exact: true })).toBeVisible()
 }
 
 /** 在页面加载前写入本机 token，跳过登录卡片。 */
