@@ -226,6 +226,7 @@ export function LogViewer({
           padding: 12,
           height: 420,
           overflowY: 'auto',
+          overscrollBehavior: 'contain', // 滚动链隔离：日志到顶/底不带动页面
         }}
         role="log"
         aria-label={`${name} 日志`}
