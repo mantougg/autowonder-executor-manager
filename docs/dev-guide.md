@@ -73,8 +73,8 @@
 |---|---|
 | `api.ts` | 统一 API 客户端：token 头注入、401 处理、`APIError`；schema 与后端 `internal/api/schema.go` 同构 |
 | `App.tsx` / `router.ts` / `main.tsx` | 应用外壳与 hash 路由 |
-| `pages/` | `Overview`（总览左树右表：导航树+执行器表）、`Detail`（详情+实时日志）、`AddImport`（粘贴命令添加/导入）、`Settings`、`Login` |
-| `components/` | `LogViewer`（ANSI 渲染+跟随滚动）、`StatusDot`、`Dialog`、`Toast` |
+| `pages/` | `Overview`（总览左树右表：导航树+执行器表）、`Detail`（详情一屏左右分栏：进程/时间带/日志 + 编辑卡片）、`AddImport`（粘贴命令添加/导入）、`Settings`、`Login` |
+| `components/` | `LogViewer`（ANSI 渲染+跟随滚动，`fill` 填满父容器）、`StatusDot`、`Dialog`、`Toast`、`Select`（自绘下拉） |
 | `i18n.ts` | 文案集中管理（v1 全中文，按 key 预留多语言） |
 | `styles/tokens.css` | `--awem-*` 设计令牌；`base.css`/`components.css` 只引用令牌 |
 | `public/favicon.svg` | 项目图标（浏览器页签 + 顶栏 logo + README） |

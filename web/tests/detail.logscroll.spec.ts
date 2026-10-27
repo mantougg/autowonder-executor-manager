@@ -29,7 +29,7 @@ test.describe('@logscroll 日志滚动链隔离', () => {
     expect(data.unhandled, '存在未配置的业务请求（Mock 不应回落真实后端）').toEqual([])
   })
 
-  test('页面可滚动时，日志到顶/底继续滚轮不改变页面滚动位置', async ({ page }) => {
+  test('日志到顶/底继续滚轮不改变页面滚动位置', async ({ page }) => {
     await mockLogStream(page)
     await page.setViewportSize({ width: 1280, height: 800 })
     await gotoDetail(page, 'Alpha')

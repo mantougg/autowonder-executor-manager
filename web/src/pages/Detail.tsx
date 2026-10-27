@@ -1,7 +1,9 @@
-// Detail.tsx：执行器详情页（F4）。状态摘要条（双状态/pid/uptime/重启）+
-// 日志查看器（LogViewer 组件）+ 结构化编辑表单（字段同 CLI edit；token
-// 掩码+眼睛；保存 PUT + Toast；运行中提示需 restart）。
-import { useEffect, useRef, useState } from 'react'
+// Detail.tsx：执行器详情页（F4；2026-10-27 起一屏左右分栏）。
+// 左列从上到下：进程卡片（双状态/pid/uptime/重启/漂移 pill）→ 运行时间带卡片 →
+//（有漂移时）漂移明细卡 → 日志卡片（flex:1 填满剩余高度，日志框内部滚动）；
+// 右列为编辑卡片（固定宽 380px，单列字段，超高内部滚动）。整页按视口定高
+//（JS 计算，下限 480px，过矮视口页面滚动兜底）。
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { t } from '../i18n'
 import {
@@ -42,6 +44,25 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
   const [saving, setSaving] = useState(false)
   const [jump, setJump] = useState<LogJump | null>(null)
   const jumpSeq = useRef(0)
+  const layoutRef = useRef<HTMLDivElement>(null)
+
+  // 一屏定高：布局高度 = 布局顶边到视口底的剩余空间（与总览同一公式）；
+  // 下限 480px，视口过矮时页面滚动兜底。view 变化后重算（标题行高度可能随平台名变化）。
+  useLayoutEffect(() => {
+    const el = layoutRef.current
+    if (!el) return
+    const update = () => {
+      const rect = el.getBoundingClientRect()
+      const docTop = rect.top + window.scrollY
+      const main = el.closest('.awem-main') as HTMLElement | null
+      const bottomPad = main ? (parseFloat(getComputedStyle(main).paddingBottom) || 24) : 24
+      const available = Math.floor(window.innerHeight - docTop - bottomPad) - 1
+      el.style.height = `${Math.max(480, available)}px`
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [view])
 
   const refresh = () => {
     getExecutor(name, onUnauthorized)
@@ -139,100 +160,105 @@ function DetailInner({ name, onUnauthorized }: { name: string; onUnauthorized: (
         ) : null}
       </div>
 
-      {/* 状态摘要条：双状态并列 + pid/uptime/重启 */}
-      <div className="awem-card" style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
-        <StatusDot kind={localStateKind(view.local.state)} text={`${t.status.local}：${localStateText[view.local.state] ?? view.local.state}`} />
-        {view.platform ? (
-          <StatusDot kind={platformKind(view.platform.status)} text={`${t.status.platform}：${platformText[view.platform.status] ?? view.platform.status}`} />
-        ) : (
-          <span className="awem-hint">{t.status.platform}：—</span>
-        )}
-        {view.platform?.project ? <span className="awem-hint">所属项目 {view.platform.project}</span> : null}
-        {view.platform?.squad ? <span className="awem-hint">所属小队 {view.platform.squad}</span> : null}
-        <span className="awem-hint">pid {view.local.pid || '—'}</span>
-        <span className="awem-hint">uptime {fmtUptime(view.local.uptime_ms)}</span>
-        <span className="awem-hint">重启 {view.local.restarts} 次</span>
-        {view.drift && view.drift.fields.length > 0 ? (
-          <span className="awem-pill warn" title={view.drift.message}>{t.status.drift} {view.drift.fields.length}</span>
-        ) : null}
-      </div>
+      {/* 一屏左右分栏：左列 进程卡片 → 运行时间带 →（漂移明细）→ 日志卡片；右列 编辑卡片 */}
+      <div className="awem-detail-layout" ref={layoutRef}>
+        <div className="awem-detail-main">
+          {/* 进程卡片：双状态并列 + pid/uptime/重启 */}
+          <div className="awem-card" style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+            <StatusDot kind={localStateKind(view.local.state)} text={`${t.status.local}：${localStateText[view.local.state] ?? view.local.state}`} />
+            {view.platform ? (
+              <StatusDot kind={platformKind(view.platform.status)} text={`${t.status.platform}：${platformText[view.platform.status] ?? view.platform.status}`} />
+            ) : (
+              <span className="awem-hint">{t.status.platform}：—</span>
+            )}
+            {view.platform?.project ? <span className="awem-hint">所属项目 {view.platform.project}</span> : null}
+            {view.platform?.squad ? <span className="awem-hint">所属小队 {view.platform.squad}</span> : null}
+            <span className="awem-hint">pid {view.local.pid || '—'}</span>
+            <span className="awem-hint">uptime {fmtUptime(view.local.uptime_ms)}</span>
+            <span className="awem-hint">重启 {view.local.restarts} 次</span>
+            {view.drift && view.drift.fields.length > 0 ? (
+              <span className="awem-pill warn" title={view.drift.message}>{t.status.drift} {view.drift.fields.length}</span>
+            ) : null}
+          </div>
 
-      {/* 运行时间带（24h，events.log 重放；崩溃点穿透日志） */}
-      <Timeline name={view.name} onUnauthorized={onUnauthorized} onLocate={locateCrash} />
+          {/* 运行时间带（24h，events.log 重放；崩溃点穿透日志） */}
+          <Timeline name={view.name} onUnauthorized={onUnauthorized} onLocate={locateCrash} />
 
-      {view.drift && view.drift.fields.length > 0 ? (
-        <div className="awem-card" style={{ paddingTop: 12, paddingBottom: 12 }}>
-          {view.drift.fields.map((f) => (
-            <div key={f.field} className="mono" style={{ fontSize: 13 }}>
-              --{f.field}：本地 {f.local} vs 平台 {f.remote}
+          {view.drift && view.drift.fields.length > 0 ? (
+            <div className="awem-card" style={{ paddingTop: 12, paddingBottom: 12 }}>
+              {view.drift.fields.map((f) => (
+                <div key={f.field} className="mono" style={{ fontSize: 13 }}>
+                  --{f.field}：本地 {f.local} vs 平台 {f.remote}
+                </div>
+              ))}
+              <div className="awem-hint">{view.drift.message}</div>
             </div>
-          ))}
-          <div className="awem-hint">{view.drift.message}</div>
-        </div>
-      ) : null}
+          ) : null}
 
-      {/* 日志查看器（暗底恒定） */}
-      <div className="awem-card">
-        <h2 className="awem-card-title">日志</h2>
-        <LogViewer name={view.name} token={getToken()} jump={jump} />
-      </div>
-
-      {/* 结构化编辑表单 */}
-      <div className="awem-card">
-        <h2 className="awem-card-title">编辑</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', columnGap: 24 }}>
-          <div className="awem-field">
-            <label>模型（model）</label>
-            <input className="awem-input mono" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
-          </div>
-          <div className="awem-field">
-            <label>推理力度（reasoning-effort）</label>
-            <input className="awem-input mono" value={form.reasoning_effort} onChange={(e) => setForm({ ...form, reasoning_effort: e.target.value })} />
-          </div>
-          <div className="awef-field awem-field">
-            <label>上下文窗口（context-window）</label>
-            <input className="awem-input mono" value={form.context_window} onChange={(e) => setForm({ ...form, context_window: e.target.value })} />
-          </div>
-          <div className="awem-field">
-            <label>memory-mode</label>
-            <input className="awem-input mono" value={form.memory_mode} onChange={(e) => setForm({ ...form, memory_mode: e.target.value })} />
-          </div>
-          <div className="awem-field">
-            <label>max-tasks</label>
-            <input className="awem-input mono" value={form.max_tasks} onChange={(e) => setForm({ ...form, max_tasks: e.target.value })} />
-          </div>
-          <div className="awem-field">
-            <label>执行器 token（掩码显示；保持掩码原样=不修改）</label>
-            <div className="awem-secret">
-              <input
-                className="awem-input mono"
-                type={showToken ? 'text' : 'password'}
-                value={form.token}
-                onChange={(e) => setForm({ ...form, token: e.target.value })}
-              />
-              <button className="awem-eye" aria-label={showToken ? '隐藏 token' : '显示 token'} onClick={() => setShowToken((v) => !v)}>
-                {showToken ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
-              </button>
-            </div>
-          </div>
-          <div className="awem-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <button className="awem-switch" role="switch" aria-checked={form.autostart} aria-label="autostart" onClick={() => setForm({ ...form, autostart: !form.autostart })} />
-            <label>autostart（随 daemon 拉起）</label>
-          </div>
-          <div className="awem-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <button className="awem-switch" role="switch" aria-checked={form.debug} aria-label="debug" onClick={() => setForm({ ...form, debug: !form.debug })} />
-            <label>--debug</label>
+          {/* 日志卡片：填满左列剩余高度，日志框内部滚动 */}
+          <div className="awem-card awem-detail-log">
+            <h2 className="awem-card-title">日志</h2>
+            <LogViewer name={view.name} token={getToken()} jump={jump} fill />
           </div>
         </div>
-        {p ? (
-          <div className="awem-hint" style={{ marginBottom: 12 }}>
-            只读：executor-id {p.executor_id} · provider {p.provider} · autowonder@{p.runtime_version}
-            {p.passthrough && p.passthrough.length > 0 ? ` · 未知 flag 将保留（${p.passthrough.length} 个）` : ''}
+
+        {/* 右列：编辑卡片，字段单列从上到下 */}
+        <div className="awem-detail-side">
+          <div className="awem-card">
+            <h2 className="awem-card-title">编辑</h2>
+            <div className="awem-field">
+              <label>模型（model）</label>
+              <input className="awem-input mono" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+            </div>
+            <div className="awem-field">
+              <label>推理力度（reasoning-effort）</label>
+              <input className="awem-input mono" value={form.reasoning_effort} onChange={(e) => setForm({ ...form, reasoning_effort: e.target.value })} />
+            </div>
+            <div className="awef-field awem-field">
+              <label>上下文窗口（context-window）</label>
+              <input className="awem-input mono" value={form.context_window} onChange={(e) => setForm({ ...form, context_window: e.target.value })} />
+            </div>
+            <div className="awem-field">
+              <label>memory-mode</label>
+              <input className="awem-input mono" value={form.memory_mode} onChange={(e) => setForm({ ...form, memory_mode: e.target.value })} />
+            </div>
+            <div className="awem-field">
+              <label>max-tasks</label>
+              <input className="awem-input mono" value={form.max_tasks} onChange={(e) => setForm({ ...form, max_tasks: e.target.value })} />
+            </div>
+            <div className="awem-field">
+              <label>执行器 token（掩码显示；保持掩码原样=不修改）</label>
+              <div className="awem-secret">
+                <input
+                  className="awem-input mono"
+                  type={showToken ? 'text' : 'password'}
+                  value={form.token}
+                  onChange={(e) => setForm({ ...form, token: e.target.value })}
+                />
+                <button className="awem-eye" aria-label={showToken ? '隐藏 token' : '显示 token'} onClick={() => setShowToken((v) => !v)}>
+                  {showToken ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
+                </button>
+              </div>
+            </div>
+            <div className="awem-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <button className="awem-switch" role="switch" aria-checked={form.autostart} aria-label="autostart" onClick={() => setForm({ ...form, autostart: !form.autostart })} />
+              <label>autostart（随 daemon 拉起）</label>
+            </div>
+            <div className="awem-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <button className="awem-switch" role="switch" aria-checked={form.debug} aria-label="debug" onClick={() => setForm({ ...form, debug: !form.debug })} />
+              <label>--debug</label>
+            </div>
+            {p ? (
+              <div className="awem-hint" style={{ marginBottom: 12 }}>
+                只读：executor-id {p.executor_id} · provider {p.provider} · autowonder@{p.runtime_version}
+                {p.passthrough && p.passthrough.length > 0 ? ` · 未知 flag 将保留（${p.passthrough.length} 个）` : ''}
+              </div>
+            ) : null}
+            <button className="awem-btn awem-btn-primary" onClick={save} disabled={saving}>
+              {saving ? '保存中…' : '保存修改'}
+            </button>
           </div>
-        ) : null}
-        <button className="awem-btn awem-btn-primary" onClick={save} disabled={saving}>
-          {saving ? '保存中…' : '保存修改'}
-        </button>
+        </div>
       </div>
     </div>
   )

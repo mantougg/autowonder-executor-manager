@@ -672,6 +672,60 @@
   font-size: var(--awem-text-12);
 }
 
+/* --- 详情页一屏左右分栏（§3，2026-10-27 起） --- */
+.awem-detail-layout {
+  display: flex;
+  gap: var(--awem-space-4);
+  align-items: stretch;
+  /* 高度由 JS 按视口设置（一屏，下限 480px）；此处为回退 */
+  height: calc(100dvh - 220px);
+  min-height: 480px;
+}
+@supports not (height: 100dvh) {
+  .awem-detail-layout {
+    height: calc(100vh - 220px);
+  }
+}
+/* 左列：进程卡片 → 运行时间带 →（漂移明细）→ 日志卡片（填满剩余高度）。
+   偶发内容（如漂移明细）使左列超出时列内滚动，不撑破一屏布局 */
+.awem-detail-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--awem-space-4);
+  overflow-y: auto;
+}
+/* 右列：编辑卡片固定 380px，内容超高时卡片内部滚动 */
+.awem-detail-side {
+  flex: none;
+  width: 380px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* 列内间距由 gap 承担，去掉卡片相邻 margin */
+.awem-detail-main .awem-card + .awem-card,
+.awem-detail-side .awem-card + .awem-card {
+  margin-top: 0;
+}
+.awem-detail-side .awem-card {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* 日志卡片填满左列剩余高度（LogViewer fill 模式），日志框内部滚动 */
+.awem-detail-log {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.awem-detail-log .awem-card-title {
+  flex: none;
+}
+
 /* --- 列表工具行（高 32px） --- */
 .awem-table-toolbar {
   display: flex;

@@ -11,7 +11,7 @@ awem 的 Web 页是 React SPA（Vite + TypeScript + React 18），构建产物
 | `src/api.ts` | 统一 API 客户端：token 头注入、401 跳登录、`APIError`；与后端 `internal/api/schema.go` 同构 |
 | `src/App.tsx` / `router.ts` | 应用外壳与 hash 路由 |
 | `src/pages/` | Overview（总览左树右表：导航树+执行器表）/ Detail（详情+实时日志）/ AddImport / Settings / Login |
-| `src/components/` | LogViewer（ANSI 渲染+跟随滚动）/ StatusDot / Dialog / Toast |
+| `src/components/` | LogViewer（ANSI 渲染+跟随滚动，`fill` 填满父容器）/ StatusDot / Dialog / Toast / Select（自绘下拉） |
 | `src/i18n.ts` | 文案集中管理（v1 全中文；新文案加在这里，不写死在组件里） |
 | `src/styles/tokens.css` | `--awem-*` 设计令牌（颜色/间距/字号/圆角） |
 | `public/favicon.svg` | 项目图标（浏览器页签 + 顶栏 logo + README） |

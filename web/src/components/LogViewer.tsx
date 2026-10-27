@@ -68,11 +68,15 @@ export function LogViewer({
   token,
   tail = 200,
   jump = null,
+  fill = false,
 }: {
   name: string
   token: string
   tail?: number
   jump?: LogJump | null
+  // fill=true：根节点与日志框 flex 填满父容器剩余高度（详情页一屏布局），日志框内部滚动；
+  // false：日志框固定 420px（默认，兼容旧用法）
+  fill?: boolean
 }) {
   const [lines, setLines] = useState<string[]>([])
   const [follow, setFollow] = useState(true)
@@ -177,7 +181,14 @@ export function LogViewer({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        ...(fill ? { flex: 1, minHeight: 0 } : null),
+      }}
+    >
       {jump?.notice ? (
         <div className="awem-timeline-notice" role="status">
           {jump.notice}
@@ -224,7 +235,8 @@ export function LogViewer({
           borderRadius: 8,
           border: '1px solid var(--awem-border)',
           padding: 12,
-          height: 420,
+          // fill 模式填满父容器剩余高度（min-height 160 兜底），否则固定 420px
+          ...(fill ? { flex: 1, minHeight: 160 } : { height: 420 }),
           overflowY: 'auto',
           overscrollBehavior: 'contain', // 滚动链隔离：日志到顶/底不带动页面
         }}
