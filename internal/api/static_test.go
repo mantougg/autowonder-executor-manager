@@ -29,6 +29,23 @@ func TestServeStatic返回内嵌页(t *testing.T) {
 		if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "text/html") {
 			t.Fatalf("GET %s Content-Type = %q，期望 text/html", path, ct)
 		}
+		if cc := rec.Header().Get("Cache-Control"); cc != "no-cache" {
+			t.Fatalf("GET %s Cache-Control = %q，期望 no-cache（HTML 壳每次重校验）", path, cc)
+		}
+	}
+}
+
+// TestCacheControlOf 资源缓存策略：assets/ 内容哈希长缓存，其余稳定文件名 no-cache。
+func TestCacheControlOf(t *testing.T) {
+	for name, want := range map[string]string{
+		"index.html":            "no-cache",
+		"favicon.svg":           "no-cache",
+		"assets/index-Ab12.js":  "public, max-age=31536000, immutable",
+		"assets/index-Cd34.css": "public, max-age=31536000, immutable",
+	} {
+		if got := cacheControlOf(name); got != want {
+			t.Fatalf("cacheControlOf(%q) = %q，期望 %q", name, got, want)
+		}
 	}
 }
 

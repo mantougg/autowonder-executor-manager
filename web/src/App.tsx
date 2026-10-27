@@ -63,6 +63,7 @@ export function App() {
             navigate('/')
           }}
         >
+          <img src="/favicon.svg" alt="" width={20} height={20} aria-hidden />
           {t.app.name}
         </a>
         <div className="awem-topbar-right">

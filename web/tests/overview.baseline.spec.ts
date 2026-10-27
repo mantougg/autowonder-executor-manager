@@ -21,11 +21,11 @@ test.describe('@baseline 总览页旧行为', () => {
     expect(data.unhandled, '存在未配置的业务请求（Mock 不应回落真实后端）').toEqual([])
   })
 
-  test('表格列与行状态按既有契约渲染', async ({ page }) => {
+  test('表格列与行状态按既有契约渲染（含版本列）', async ({ page }) => {
     await gotoOverview(page)
     const table = page.locator('.awem-table')
     await expect(table.locator('tbody tr')).toHaveCount(4)
-    for (const h of ['名称', '本地进程', '连接', '平台（平台轮询）', '模型', '自启', '重启']) {
+    for (const h of ['名称', '版本', '本地进程', '连接', '平台（平台轮询）', '模型', '自启', '重启']) {
       await expect(table.getByRole('columnheader', { name: h })).toBeVisible()
     }
     await expect(table.getByRole('link', { name: 'Alpha' })).toBeVisible()
@@ -33,7 +33,21 @@ test.describe('@baseline 总览页旧行为', () => {
     await expect(row(page, 'Beta').getByText('已停止')).toBeVisible()
     await expect(row(page, 'Gamma').getByText('失败')).toBeVisible()
     await expect(row(page, 'Delta').getByText('重连中').first()).toBeVisible()
+    // 版本列来自 parsed.runtime_version
+    await expect(row(page, 'Alpha').locator('td.mono', { hasText: '0.3.22' })).toBeVisible()
     await expect(page.getByRole('button', { name: '添加执行器' })).toBeVisible()
+  })
+
+  test('版本解析缺失时版本列回退 —', async ({ page, request }) => {
+    await setMock(request, {
+      executors: [
+        { name: 'Alpha', state: 'running', runtime_version: '0.3.22' },
+        { name: 'Legacy', state: 'stopped', runtime_version: null },
+      ],
+    })
+    await gotoOverview(page)
+    await expect(row(page, 'Alpha').getByText('0.3.22')).toBeVisible()
+    await expect(row(page, 'Legacy').locator('td').nth(2)).toHaveText('—')
   })
 
   test('单条启动：直接调用 start 并提示成功', async ({ page, request }) => {

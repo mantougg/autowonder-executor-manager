@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="awem">
+  <style>
+    .bg { fill: #2563eb; }
+    @media (prefers-color-scheme: dark) { .bg { fill: #3b82f6; } }
+  </style>
+  <!-- 圆角方块底（品牌 accent 色）+ 白色「中枢-节点」图形：
+       中心圆 = daemon/管理面，三个卫星节点 = 被纳管的执行器 -->
+  <rect class="bg" width="64" height="64" rx="14"/>
+  <g stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" fill="none">
+    <path d="M32 32 L32 15"/>
+    <path d="M32 32 L17 47"/>
+    <path d="M32 32 L47 47"/>
+  </g>
+  <circle cx="32" cy="13" r="5.5" fill="#ffffff"/>
+  <circle cx="15" cy="50" r="5.5" fill="#ffffff"/>
+  <circle cx="49" cy="50" r="5.5" fill="#ffffff"/>
+  <circle cx="32" cy="34" r="8" fill="#ffffff"/>
+  <circle cx="32" cy="34" r="3.4" class="bg" fill="#2563eb"/>
+</svg>

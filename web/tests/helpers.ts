@@ -9,6 +9,8 @@ export interface ExecutorSpec {
   autostart?: boolean
   restarts?: number
   model?: string
+  /** autowonder 运行时版本；null 表示解析缺失（版本列回退 —）。 */
+  runtime_version?: string | null
 }
 
 export interface MockRequest {
@@ -73,6 +75,39 @@ export function selectAllCheckbox(page: Page): Locator {
 /** 批量操作条。 */
 export function bulkBar(page: Page): Locator {
   return page.locator('.awem-bulk-bar')
+}
+
+/** 成功/普通提示（Toast 组件，右下角 3s）。 */
+export function toast(page: Page, text: string | RegExp): Locator {
+  return page.locator('.awem-toast:not(.error)', { hasText: text })
+}
+
+/** 错误提示。 */
+export function errorToast(page: Page, text: string | RegExp): Locator {
+  return page.locator('.awem-toast.error', { hasText: text })
+}
+
+/** 左侧归属导航树。 */
+export function navTree(page: Page): Locator {
+  return page.locator('nav.awem-navtree')
+}
+
+/** 导航树节点（按节点名精确定位，徽标文本不参与匹配）。 */
+export function navNode(page: Page, name: string): Locator {
+  return page.locator('.awem-navtree-node').filter({
+    has: page.locator(`.awem-navtree-name:text-is(${JSON.stringify(name)})`),
+  })
+}
+
+/** 本地进程筛选（自定义 Select 触发按钮，aria-label 关联）。 */
+export function localFilter(page: Page): Locator {
+  return page.getByRole('button', { name: '本地进程' })
+}
+
+/** 设置本地进程筛选：打开弹层后按选项名点击。 */
+export async function setLocalFilter(page: Page, label: string) {
+  await localFilter(page).click()
+  await page.getByRole('option', { name: label }).click()
 }
 
 /** 打开总览页并等待标题。 */

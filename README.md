@@ -1,4 +1,4 @@
-# awem · AutoWonder Executor Manager
+# <img src="web/public/favicon.svg" width="28" align="absmiddle" alt="awem logo" /> awem · AutoWonder Executor Manager
 
 > 跨平台（Windows / Linux / macOS）的本机 AutoWonder 执行器管理应用。
 > 单一 Go 二进制 = 常驻 daemon + 内嵌 Web 页 + CLI 子命令；AI 用 CLI 维护，人用 Web 页维护。

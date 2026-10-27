@@ -15,24 +15,19 @@ export const zh = {
     addImport: '添加 / 导入',
     settings: '设置',
   },
-  tabs: {
-    label: '页面视图',
-    list: '列表',
+  navTree: {
+    label: '归属导航',
+    all: '全部执行器',
   },
-  views: {
-    label: '展示方式',
-    flat: '平铺',
-    tree: '树形',
+  columns: {
+    squad: '所属小队',
+    version: '版本',
   },
   filters: {
     label: '查询条件',
     name: '名称',
-    project: '所属项目',
-    squad: '所属小队',
     local: '本地进程',
     all: '全部',
-    unowned: '未归属',
-    unassignedSquad: '未分配小队',
     reset: '重置',
     count: (matched: number, total: number) => `匹配 ${matched} / 共 ${total} 个执行器`,
     total: (total: number) => `共 ${total} 个执行器`,
@@ -42,9 +37,6 @@ export const zh = {
   tree: {
     unassignedSquad: '未分配小队',
     unowned: '未归属',
-    projectCheckbox: (name: string) => `全选项目 ${name}`,
-    squadCheckbox: (name: string) => `全选小队 ${name}`,
-    unownedCheckbox: '全选未归属',
     expand: (name: string) => `展开 ${name}`,
     collapse: (name: string) => `收起 ${name}`,
     badge: (online: number, total: number) => `${online}/${total}`,

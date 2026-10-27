@@ -1,14 +1,19 @@
-// overview.filters.spec.ts：@filters 总览四项查询条件（名称/项目/小队/本地进程）。
-// 覆盖：展示与选项、名称匹配、AND 组合、计数、空态与清除、选择清理/全选范围、
-// 树形裁剪与折叠恢复、无归属隐藏、轮询/切换保持、选项失效回退。
-import { expect, type Page } from '@playwright/test'
+// overview.filters.spec.ts：@filters 总览查询条件（名称/本地进程，2026-10-27 起
+// 项目/小队条件由左树导航替代）。覆盖：展示与选项、名称匹配、AND 组合、计数、
+// 空态与清除、选择清理/全选范围、与左树选择组合、无归属隐藏、轮询保持/刷新重置、
+// 本地进程选项失效回退。
+import { expect } from '@playwright/test'
 import { test } from './fixtures'
 import {
-  mockRequests,
   gotoOverview,
+  localFilter,
+  mockRequests,
+  navNode,
+  navTree,
   resetMock,
   rowCheckbox,
   selectAllCheckbox,
+  setLocalFilter,
   setMock,
 } from './helpers'
 
@@ -84,23 +89,19 @@ const TREE_EXECS = [
   },
 ]
 
-function rowCheckboxes(page: Page) {
+function rowCheckboxes(page: Parameters<typeof rowCheckbox>[0]) {
   return page.getByRole('checkbox', { name: /^选择执行器 / })
 }
 
-function countHint(page: Page) {
+function countHint(page: Parameters<typeof rowCheckbox>[0]) {
   return page.locator('.awem-table-toolbar .awem-hint')
 }
 
-async function applyFilter(page: Page, label: string, value: string) {
-  await page.getByLabel(label).selectOption({ label: value })
-}
-
-async function resetFilters(page: Page) {
+async function resetFilters(page: Parameters<typeof rowCheckbox>[0]) {
   await page.getByRole('button', { name: '重置' }).click()
 }
 
-test.describe('@filters 总览四项查询条件', () => {
+test.describe('@filters 总览查询条件', () => {
   test.beforeEach(async ({ request }) => {
     await resetMock(request)
     await setMock(request, { executors: FILTER_EXECS })
@@ -111,32 +112,25 @@ test.describe('@filters 总览四项查询条件', () => {
     expect(data.unhandled, '存在未配置的业务请求（Mock 不应回落真实后端）').toEqual([])
   })
 
-  test('筛选行展示四个条件、选项与默认计数', async ({ page }) => {
+  test('筛选行展示名称/本地进程两个条件与默认计数，项目/小队条件下拉已移除', async ({ page }) => {
     await gotoOverview(page)
 
     const bar = page.getByRole('group', { name: '查询条件' })
     await expect(bar).toBeVisible()
     await expect(page.getByLabel('名称')).toBeVisible()
-    await expect(page.getByLabel('所属项目')).toBeVisible()
-    await expect(page.getByLabel('所属小队')).toBeVisible()
-    await expect(page.getByLabel('本地进程')).toBeVisible()
+    await expect(localFilter(page)).toBeVisible()
+    await expect(page.getByLabel('所属项目')).toHaveCount(0)
+    await expect(page.getByLabel('所属小队')).toHaveCount(0)
     await expect(page.getByRole('button', { name: '重置' })).toBeVisible()
     await expect(countHint(page)).toHaveText('共 6 个执行器')
 
-    const projects = await page.getByLabel('所属项目').locator('option').allTextContents()
-    expect(projects[0]).toBe('全部')
-    expect(projects).toContain('git-workspace')
-    expect(projects).toContain('autowonder-executor-manager')
-    expect(projects[projects.length - 1]).toBe('未归属')
-
-    const squads = await page.getByLabel('所属小队').locator('option').allTextContents()
-    expect(squads[0]).toBe('全部')
-    expect(squads).toContain('快速交付')
-    expect(squads).toContain('标准自动化交付')
-    expect(squads).toContain('未分配小队')
-
-    const locals = await page.getByLabel('本地进程').locator('option').allTextContents()
-    expect(locals).toEqual(['全部', '运行中', '重连中', '停止中', '已停止', '失败'])
+    // 自定义 Select：打开弹层核对选项（固定五档常驻），Esc 关闭
+    await localFilter(page).click()
+    await expect(page.getByRole('option')).toHaveText([
+      '全部', '运行中', '重连中', '停止中', '已停止', '失败',
+    ])
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('option')).toHaveCount(0)
 
     // 筛选行位于工具行上方，且都不在表格滚动容器内
     const pos = await page.evaluate(() => {
@@ -177,31 +171,34 @@ test.describe('@filters 总览四项查询条件', () => {
     await expect(rowCheckboxes(page)).toHaveCount(0)
   })
 
-  test('项目/小队/本地进程条件及 AND 组合', async ({ page }) => {
+  test('本地进程条件及与名称的 AND 组合', async ({ page }) => {
     await gotoOverview(page)
 
-    await applyFilter(page, '所属项目', 'git-workspace')
-    await expect(rowCheckboxes(page)).toHaveCount(2)
-
-    await applyFilter(page, '所属小队', '快速交付')
+    await setLocalFilter(page, '运行中')
     await expect(rowCheckboxes(page)).toHaveCount(1)
     await expect(rowCheckbox(page, 'exec-10001')).toBeVisible()
 
-    await applyFilter(page, '本地进程', '运行中')
+    await page.getByLabel('名称').fill('执行器')
     await expect(rowCheckboxes(page)).toHaveCount(1)
 
-    await applyFilter(page, '本地进程', '已停止')
-    await expect(rowCheckboxes(page)).toHaveCount(0)
+    await setLocalFilter(page, '已停止')
+    await expect(rowCheckboxes(page)).toHaveCount(1)
+    await expect(rowCheckbox(page, 'exec-10002')).toBeVisible()
+
+    await setLocalFilter(page, '重连中')
+    await expect(rowCheckboxes(page)).toHaveCount(1)
+    await expect(rowCheckbox(page, 'exec-10003')).toBeVisible()
+
+    await setLocalFilter(page, '失败')
+    await expect(rowCheckboxes(page)).toHaveCount(1)
+    await expect(rowCheckbox(page, 'exec-10004')).toBeVisible()
+
+    await page.getByLabel('名称').fill('zzz')
     await expect(page.getByText('没有匹配的执行器')).toBeVisible()
+    await expect(rowCheckboxes(page)).toHaveCount(0)
 
     await resetFilters(page)
-    await applyFilter(page, '所属项目', '未归属')
-    await expect(rowCheckboxes(page)).toHaveCount(2)
-
-    await applyFilter(page, '所属小队', '未分配小队')
-    await expect(rowCheckboxes(page)).toHaveCount(2)
-
-    await applyFilter(page, '本地进程', '停止中')
+    await setLocalFilter(page, '停止中')
     await expect(rowCheckboxes(page)).toHaveCount(1)
     await expect(rowCheckbox(page, 'exec-10005')).toBeVisible()
   })
@@ -244,44 +241,30 @@ test.describe('@filters 总览四项查询条件', () => {
     await expect(selectAllCheckbox(page)).toBeDisabled()
   })
 
-  test('树形按命中裁剪、自动展开、空组隐藏、清空恢复折叠', async ({ page, request }) => {
+  test('筛选与左树选择 AND 组合：树不被筛选裁剪', async ({ page, request }) => {
     await setMock(request, { executors: TREE_EXECS })
     await gotoOverview(page)
-    await page.getByRole('button', { name: '树形' }).click()
 
-    // 先收起阿项目，制造筛选前的折叠记忆
-    await page.getByRole('button', { name: '收起 阿项目' }).click()
-    await expect(page.getByRole('button', { name: '展开 阿项目' })).toBeVisible()
+    // 点项目节点过滤：阿项目 → A/B/C 三台（A 多小队也去重为一行）
+    await navNode(page, '阿项目').click()
+    await expect(rowCheckboxes(page)).toHaveCount(3)
+    await expect(countHint(page)).toHaveText('匹配 3 / 共 5 个执行器')
 
+    // 叠加名称筛选：AND 生效；左树仍展示全量归属结构（不被裁剪）
     await page.getByLabel('名称').fill('执行器A')
-    // 命中路径自动展开；只保留阿项目→甲/乙小队→A（重复叶子）
-    await expect(page.getByRole('button', { name: '收起 阿项目' })).toBeVisible()
-    await expect(page.locator('tr.awem-tree-group[data-level="1"] .awem-tree-name')).toHaveText(['阿项目'])
-    await expect(rowCheckboxes(page)).toHaveCount(2)
-    await expect(page.locator('tr.awem-tree-group', { hasText: '未分配小队' })).toHaveCount(0)
-    await expect(page.locator('tr.awem-tree-group', { hasText: '波项目' })).toHaveCount(0)
-    await expect(page.locator('tr.awem-tree-group', { hasText: '未归属' })).toHaveCount(0)
+    await expect(rowCheckboxes(page)).toHaveCount(1)
+    await expect(rowCheckbox(page, 'A')).toBeVisible()
+    await expect(countHint(page)).toHaveText('匹配 1 / 共 5 个执行器')
+    await expect(navNode(page, '波项目')).toBeVisible()
+    await expect(navNode(page, '未归属')).toBeVisible()
 
-    const badge = (group: string) =>
-      page.locator('tr.awem-tree-group', { hasText: group }).locator('.awem-tree-badge')
-    await expect(badge('阿项目')).toHaveText('1/1')
-    await expect(badge('甲小队')).toHaveText('1/1')
-    await expect(badge('乙小队')).toHaveText('1/1')
-
-    // 筛选期间折叠操作不改变统一展开，也不写入折叠记忆
-    await page.getByRole('button', { name: '收起 阿项目' }).click()
-    await expect(page.getByRole('button', { name: '收起 阿项目' })).toBeVisible()
-    await expect(rowCheckboxes(page)).toHaveCount(2)
-
+    // 重置筛选仅清条件，树选择保持
     await resetFilters(page)
-    await expect(page.getByRole('button', { name: '展开 阿项目' })).toBeVisible()
-    await page.getByRole('button', { name: '展开 阿项目' }).click()
-    await expect(badge('甲小队')).toHaveText('1/1')
-    await expect(badge('乙小队')).toHaveText('2/2')
-    await expect(badge('未归属')).toHaveText('—/1')
+    await expect(rowCheckboxes(page)).toHaveCount(3)
+    await expect(navNode(page, '阿项目')).toHaveAttribute('aria-current', 'true')
   })
 
-  test('无归属数据时隐藏项目/小队条件，名称与本地进程保留', async ({ page, request }) => {
+  test('无归属数据时隐藏左树，名称与本地进程筛选保留', async ({ page, request }) => {
     await setMock(request, {
       executors: [
         { name: 'U1', state: 'stopped', platform: { status: 'ONLINE', name: '执行器U1' } },
@@ -289,55 +272,59 @@ test.describe('@filters 总览四项查询条件', () => {
       ],
     })
     await gotoOverview(page)
+    await expect(navTree(page)).toHaveCount(0)
     await expect(page.getByRole('group', { name: '查询条件' })).toBeVisible()
     await expect(page.getByLabel('名称')).toBeVisible()
-    await expect(page.getByLabel('本地进程')).toBeVisible()
-    await expect(page.getByLabel('所属项目')).toHaveCount(0)
-    await expect(page.getByLabel('所属小队')).toHaveCount(0)
+    await expect(localFilter(page)).toBeVisible()
 
     await page.getByLabel('名称').fill('U2')
     await expect(rowCheckboxes(page)).toHaveCount(1)
+
+    await page.getByLabel('名称').fill('')
+    await setLocalFilter(page, '已停止')
+    await expect(rowCheckboxes(page)).toHaveCount(1)
+    await expect(rowCheckbox(page, 'U1')).toBeVisible()
   })
 
-  test('筛选跨平铺/树形与轮询保持，刷新重置', async ({ page, request }) => {
-    await setMock(request, { executors: TREE_EXECS })
+  test('筛选跨轮询保持，刷新重置', async ({ page, request }) => {
     await gotoOverview(page)
-    await page.getByRole('button', { name: '树形' }).click()
-    await applyFilter(page, '所属项目', '阿项目')
-    await expect(rowCheckboxes(page)).toHaveCount(4) // A 重复两次 + B + C
-    await expect(countHint(page)).toHaveText('匹配 3 / 共 5 个执行器')
+    await setLocalFilter(page, '运行中')
+    await page.getByLabel('名称').fill('Alpha')
+    await expect(rowCheckboxes(page)).toHaveCount(1)
 
     const before = (await mockRequests(request)).filter((r) => r.path === '/api/executors').length
     await expect.poll(
       async () => (await mockRequests(request)).filter((r) => r.path === '/api/executors').length,
       { timeout: 7_000 },
     ).toBeGreaterThan(before)
-    await expect(page.getByLabel('所属项目').locator('option:checked')).toHaveText('阿项目')
-
-    await page.getByRole('button', { name: '平铺' }).click()
-    await expect(page.getByLabel('所属项目').locator('option:checked')).toHaveText('阿项目')
-    await expect(rowCheckboxes(page)).toHaveCount(3)
-    await expect(countHint(page)).toHaveText('匹配 3 / 共 5 个执行器')
+    await expect(localFilter(page)).toHaveText('运行中')
+    await expect(page.getByLabel('名称')).toHaveValue('Alpha')
+    await expect(rowCheckboxes(page)).toHaveCount(1)
 
     await page.reload()
     await expect(page.getByRole('heading', { name: '总览' })).toBeVisible()
-    await expect(page.getByLabel('所属项目').locator('option:checked')).toHaveText('全部')
+    await expect(localFilter(page)).toHaveText('全部')
     await expect(page.getByLabel('名称')).toHaveValue('')
-    await expect(rowCheckboxes(page)).toHaveCount(5)
+    await expect(rowCheckboxes(page)).toHaveCount(6)
   })
 
-  test('选项随数据刷新更新，失效选中值回退全部', async ({ page, request }) => {
-    await gotoOverview(page)
-    await applyFilter(page, '所属项目', 'git-workspace')
-    await expect(rowCheckboxes(page)).toHaveCount(2)
-
+  test('本地进程选项随数据刷新更新，失效选中值回退全部', async ({ page, request }) => {
+    // 固定五档（运行中/重连中/停止中/已停止/失败）常驻，只有数据驱动的额外状态会失效
     await setMock(request, {
-      executors: FILTER_EXECS.filter((e) => e.platform?.project !== 'git-workspace'),
+      executors: [
+        { name: 'X', state: 'paused', platform: { status: 'ONLINE', name: '执行器X' } },
+        ...FILTER_EXECS,
+      ],
     })
-    await expect(page.getByLabel('所属项目').locator('option:checked'),
-      '选中项目从新数据中消失后应回退全部').toHaveText('全部', { timeout: 8_000 })
-    await expect(rowCheckboxes(page)).toHaveCount(4)
-    await expect(countHint(page)).toHaveText('共 4 个执行器')
+    await gotoOverview(page)
+    await setLocalFilter(page, 'paused')
+    await expect(rowCheckboxes(page)).toHaveCount(1)
+
+    await setMock(request, { executors: FILTER_EXECS })
+    await expect(localFilter(page), '选中状态从新数据中消失后应回退全部')
+      .toHaveText('全部', { timeout: 8_000 })
+    await expect(rowCheckboxes(page)).toHaveCount(6)
+    await expect(countHint(page)).toHaveText('共 6 个执行器')
   })
 
   test('未知本地状态原样进入选项并可按其筛选', async ({ page, request }) => {
@@ -348,12 +335,31 @@ test.describe('@filters 总览四项查询条件', () => {
       ],
     })
     await gotoOverview(page)
-    const locals = await page.getByLabel('本地进程').locator('option').allTextContents()
-    expect(locals).toContain('paused')
-
-    await applyFilter(page, '本地进程', 'paused')
+    await localFilter(page).click()
+    await expect(page.getByRole('option', { name: 'paused' })).toHaveCount(1)
+    await page.getByRole('option', { name: 'paused' }).click()
     await expect(rowCheckboxes(page)).toHaveCount(1)
     await expect(rowCheckbox(page, 'X')).toBeVisible()
+  })
+
+  test('本地进程下拉支持键盘操作与点击外部关闭', async ({ page }) => {
+    await gotoOverview(page)
+
+    // ↑/↓ 打开并移动高亮，Enter 选中
+    await localFilter(page).press('ArrowDown')
+    await expect(page.getByRole('listbox', { name: '本地进程' })).toBeVisible()
+    await localFilter(page).press('ArrowDown') // 全部 → 运行中
+    await localFilter(page).press('Enter')
+    await expect(page.getByRole('listbox')).toHaveCount(0)
+    await expect(localFilter(page)).toHaveText('运行中')
+    await expect(rowCheckboxes(page)).toHaveCount(1)
+
+    // 点击组件外部仅关闭弹层，不改变选中值
+    await localFilter(page).click()
+    await expect(page.getByRole('option', { name: '已停止' })).toBeVisible()
+    await page.getByRole('heading', { name: '总览' }).click()
+    await expect(page.getByRole('listbox')).toHaveCount(0)
+    await expect(localFilter(page)).toHaveText('运行中')
   })
 
   test('无执行器时不显示筛选行', async ({ page, request }) => {

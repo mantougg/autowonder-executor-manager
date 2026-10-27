@@ -1,8 +1,9 @@
-// Overview.tsx：总览页（一期展示改造）。
-// 标题下 Tab 容器（本期仅「列表」，hash #tab=list）+ 列表 tab：
-// 保留原表格/批量/5s 轮询能力，新增「平铺 ⇄ 树形」（项目 → 小队 → 执行器）。
-// 树形多小队执行器重复叶子、选择按执行器标识去重；未归属组固定排最后。
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+// Overview.tsx：总览页（左树右表，2026-10-27 改造）。
+// 左侧归属导航树（全部 → 项目 → 小队 → 未归属），点击节点过滤右侧表格；
+// 右侧保留批量选择/批量操作/5s 轮询/漂移黄标。列：选择 | 名称 | 所属小队（主）+ 所属项目（副） |
+// 版本（parsed.runtime_version） | 本地进程 | 连接 | 平台 | 模型 | 自启 | 重启 | 操作。
+// 无平台归属数据时隐藏左树、表格占满。
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Play, Square, RotateCw, Trash2, Plus, ChevronDown, ChevronRight } from 'lucide-react'
 import { t } from '../i18n'
 import {
@@ -10,45 +11,38 @@ import {
 } from '../api'
 import { StatusDot, localStateKind, localStateText, platformKind, platformText } from '../components/StatusDot'
 import { Dialog } from '../components/Dialog'
-import { useToast } from '../components/Toast'
-import { ToastProvider } from '../components/Toast'
+import { Select } from '../components/Select'
+import { useToast, ToastProvider } from '../components/Toast'
 import { navigate } from '../router'
 
 const REFRESH_MS = 5000 // 轮询间隔（选定记录：5s，运维工具求近实时又不过载）
-const TAB_HASH = '#tab=list'
 const TREE_KEY = 'awem-overview-tree-collapsed'
 
 const RUNNING_LIKE = new Set(['running', 'backoff', 'stopping'])
 const isRunningLike = (state: string) => RUNNING_LIKE.has(state)
 
 type BatchKind = 'start' | 'stop' | 'delete'
-type ViewMode = 'flat' | 'tree'
 
-// 筛选哨兵值：与真实项目/小队名隔离；选项标签走 i18n。
+// 筛选哨兵值：与真实状态名隔离；选项标签走 i18n。
 const FILTER_ALL = '__all__'
-const FILTER_UNOWNED = '__unowned__'
-const FILTER_UNASSIGNED_SQUAD = '__unassigned_squad__'
 const LOCAL_STATE_ORDER = ['running', 'backoff', 'stopping', 'stopped', 'failed']
+
+// 左树选中节点：全部 / 未归属 / 项目 / 小队。
+type TreeSel =
+  | { kind: 'all' }
+  | { kind: 'unowned' }
+  | { kind: 'project'; project: string }
+  | { kind: 'squad'; project: string; squad: string }
 
 interface FilterState {
   name: string
-  project: string
-  squad: string
   local: string
 }
 
-const EMPTY_FILTERS: FilterState = {
-  name: '',
-  project: FILTER_ALL,
-  squad: FILTER_ALL,
-  local: FILTER_ALL,
-}
+const EMPTY_FILTERS: FilterState = { name: '', local: FILTER_ALL }
 
 function filterActive(f: FilterState): boolean {
-  return f.name.trim() !== ''
-    || f.project !== FILTER_ALL
-    || f.squad !== FILTER_ALL
-    || f.local !== FILTER_ALL
+  return f.name.trim() !== '' || f.local !== FILTER_ALL
 }
 
 interface BatchTarget {
@@ -81,6 +75,8 @@ interface ProjectGroup {
 interface TreeModel {
   projects: ProjectGroup[]
   unowned: SquadGroup
+  allCount: number
+  allOnline: number
 }
 
 // 名称列表：超过 limit 时列前 limit 个并注明总数（工单：等 N 个）。
@@ -142,20 +138,31 @@ function squadNamesOf(e: ExecutorView): string[] {
   return joined ? joined.split('、').filter(Boolean) : []
 }
 
-// 四项条件 AND；名称匹配平台显示名或执行器标识（去空格、不区分大小写子串）。
+// 表格「所属小队」单元格主行文本：顿号拼接串（squad_names 兜底拼接）。
+function squadTextOf(e: ExecutorView): string {
+  return e.platform?.squad || squadNamesOf(e).join('、')
+}
+
+// 树节点匹配用：无小队执行器归入虚拟「未分配小队」节点。
+function squadsForNode(e: ExecutorView): string[] {
+  const s = squadNamesOf(e)
+  return s.length > 0 ? s : [t.tree.unassignedSquad]
+}
+
+function inTreeSel(e: ExecutorView, sel: TreeSel): boolean {
+  if (sel.kind === 'all') return true
+  const project = e.platform?.project ?? ''
+  if (sel.kind === 'unowned') return project === ''
+  if (sel.kind === 'project') return project === sel.project
+  return project === sel.project && squadsForNode(e).includes(sel.squad)
+}
+
+// 名称/本地进程 AND；名称匹配平台显示名或执行器标识（去空格、不区分大小写子串）。
 function matchesFilters(e: ExecutorView, f: FilterState): boolean {
   const q = f.name.trim().toLocaleLowerCase()
   if (q) {
     const names = [e.platform?.name ?? '', e.name]
     if (!names.some((n) => n.toLocaleLowerCase().includes(q))) return false
-  }
-  if (f.project !== FILTER_ALL) {
-    const project = e.platform?.project ?? ''
-    if (f.project === FILTER_UNOWNED ? project !== '' : project !== f.project) return false
-  }
-  if (f.squad !== FILTER_ALL) {
-    const squads = squadNamesOf(e)
-    if (f.squad === FILTER_UNASSIGNED_SQUAD ? squads.length > 0 : !squads.includes(f.squad)) return false
   }
   if (f.local !== FILTER_ALL && e.local.state !== f.local) return false
   return true
@@ -204,102 +211,121 @@ function buildTree(rows: ExecutorView[]): TreeModel {
       return { key: `project:${name}`, name, squads, names, online: onlineOf(allLeaves) }
     })
     .sort((a, b) => collator.compare(a.name, b.name))
-  const unames = uniqueNames(unownedLeaves)
   return {
     projects: projectGroups,
     unowned: {
       key: 'unowned',
       name: t.tree.unowned,
       leaves: unownedLeaves,
-      names: unames,
+      names: uniqueNames(unownedLeaves),
       online: 0,
     },
+    allCount: uniqueNames(rows).length,
+    allOnline: onlineOf(rows),
   }
 }
 
-// TriCheckbox：支持 indeterminate 的复选框（组行全选/半选用）。
-function TriCheckbox({
-  label, checked, indeterminate, disabled, onChange,
+// NavTree：左侧归属导航（§4 导航树；仅导航过滤，不含复选框）。
+function NavTree({
+  model, sel, collapsed, onSelect, onToggle,
 }: {
-  label: string
-  checked: boolean
-  indeterminate: boolean
-  disabled: boolean
-  onChange: () => void
+  model: TreeModel
+  sel: TreeSel
+  collapsed: Set<string>
+  onSelect: (s: TreeSel) => void
+  onToggle: (key: string) => void
 }) {
-  const ref = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    if (ref.current) ref.current.indeterminate = indeterminate
-  }, [indeterminate])
   return (
-    <input
-      ref={ref}
-      type="checkbox"
-      className="awem-checkbox"
-      aria-label={label}
-      checked={checked}
-      disabled={disabled}
-      onChange={onChange}
-    />
-  )
-}
-
-function GroupRow({
-  level, groupKey, project, name, names, selected, locked, collapsed,
-  badge, checkboxLabel, colSpan, onToggleCollapsed, onToggleAll,
-}: {
-  level: number
-  groupKey: string
-  project?: string
-  name: string
-  names: string[]
-  selected: Set<string>
-  locked: boolean
-  collapsed: boolean
-  badge: string
-  checkboxLabel: string
-  colSpan: number
-  onToggleCollapsed: () => void
-  onToggleAll: (names: string[]) => void
-}) {
-  const all = names.length > 0 && names.every((n) => selected.has(n))
-  const some = names.some((n) => selected.has(n)) && !all
-  return (
-    <tr className="awem-tree-group" data-level={level} data-project={project ?? ''} data-key={groupKey}>
-      <td colSpan={colSpan} style={{ padding: 0 }}>
-        <div className="awem-tree-group-cell" style={{ paddingLeft: level * 16 }}>
-          <TriCheckbox
-            label={checkboxLabel}
-            checked={all}
-            indeterminate={some}
-            disabled={locked}
-            onChange={() => onToggleAll(names)}
-          />
+    <nav className="awem-navtree" aria-label={t.navTree.label}>
+      <ul>
+        <li>
           <button
             type="button"
-            className="awem-tree-toggle"
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? t.tree.expand(name) : t.tree.collapse(name)}
-            onClick={onToggleCollapsed}
+            className="awem-navtree-node"
+            aria-current={sel.kind === 'all' ? 'true' : undefined}
+            onClick={() => onSelect({ kind: 'all' })}
           >
-            {collapsed ? <ChevronRight size={15} aria-hidden /> : <ChevronDown size={15} aria-hidden />}
-            <span className="awem-tree-name">{name}</span>
+            <span className="awem-navtree-spacer" aria-hidden />
+            <span className="awem-navtree-name" title={t.navTree.all}>{t.navTree.all}</span>
+            <span className="awem-tree-badge">{t.tree.badge(model.allOnline, model.allCount)}</span>
           </button>
-          <span className="awem-tree-badge">{badge}</span>
-        </div>
-      </td>
-    </tr>
+        </li>
+        {model.projects.map((p) => {
+          const isCollapsed = collapsed.has(p.key)
+          return (
+            <li key={p.key}>
+              <div className="awem-navtree-row">
+                <button
+                  type="button"
+                  className="awem-navtree-chevron"
+                  aria-expanded={!isCollapsed}
+                  aria-label={isCollapsed ? t.tree.expand(p.name) : t.tree.collapse(p.name)}
+                  onClick={() => onToggle(p.key)}
+                >
+                  {isCollapsed ? <ChevronRight size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
+                </button>
+                <button
+                  type="button"
+                  className="awem-navtree-node"
+                  data-project={p.name}
+                  aria-current={sel.kind === 'project' && sel.project === p.name ? 'true' : undefined}
+                  onClick={() => onSelect({ kind: 'project', project: p.name })}
+                >
+                  <span className="awem-navtree-name" title={p.name}>{p.name}</span>
+                  <span className="awem-tree-badge">{t.tree.badge(p.online, p.names.length)}</span>
+                </button>
+              </div>
+              {!isCollapsed ? (
+                <ul>
+                  {p.squads.map((s) => (
+                    <li key={s.key}>
+                      <button
+                        type="button"
+                        className="awem-navtree-node"
+                        data-project={p.name}
+                        data-squad={s.name}
+                        aria-current={
+                          sel.kind === 'squad' && sel.project === p.name && sel.squad === s.name
+                            ? 'true'
+                            : undefined
+                        }
+                        onClick={() => onSelect({ kind: 'squad', project: p.name, squad: s.name })}
+                      >
+                        <span className="awem-navtree-name" title={s.name}>{s.name}</span>
+                        <span className="awem-tree-badge">{t.tree.badge(s.online, s.names.length)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          )
+        })}
+        {model.unowned.leaves.length > 0 ? (
+          <li>
+            <button
+              type="button"
+              className="awem-navtree-node"
+              data-unowned="true"
+              aria-current={sel.kind === 'unowned' ? 'true' : undefined}
+              onClick={() => onSelect({ kind: 'unowned' })}
+            >
+              <span className="awem-navtree-spacer" aria-hidden />
+              <span className="awem-navtree-name" title={t.tree.unowned}>{t.tree.unowned}</span>
+              <span className="awem-tree-badge">{t.tree.unownedBadge(model.unowned.names.length)}</span>
+            </button>
+          </li>
+        ) : null}
+      </ul>
+    </nav>
   )
 }
 
 function ExecutorRow({
-  e, level, project, squad, linked, selected, locked, busyName, batchBusy,
+  e, linked, selected, locked, busyName, batchBusy,
   onToggle, onAct, onStop, onRemove,
 }: {
   e: ExecutorView
-  level: number
-  project?: string
-  squad?: string
   linked: boolean
   selected: boolean
   locked: boolean
@@ -310,11 +336,11 @@ function ExecutorRow({
   onStop: (e: ExecutorView) => void
   onRemove: (e: ExecutorView) => void
 }) {
-  const treeAttrs = level > 0
-    ? { 'data-project': project ?? '', 'data-squad': squad ?? '' }
-    : {}
+  const squadText = squadTextOf(e)
+  const project = e.platform?.project ?? ''
+  const version = e.parsed?.runtime_version ?? ''
   return (
-    <tr className={level > 0 ? 'awem-tree-leaf' : undefined} {...treeAttrs}>
+    <tr>
       <td className="awem-col-check">
         <input
           type="checkbox"
@@ -325,30 +351,43 @@ function ExecutorRow({
           onChange={() => onToggle(e.name)}
         />
       </td>
-      <td style={level > 0 ? { paddingLeft: level * 16 } : undefined}>
-        <a
-          href={`/executors/${encodeURIComponent(e.name)}`}
-          className={e.platform?.name ? '' : 'mono'}
-          title={e.platform?.agent_name ? `数字工人：${e.platform.agent_name}` : undefined}
-          onClick={(ev) => { ev.preventDefault(); navigate(`/executors/${encodeURIComponent(e.name)}`) }}
-        >
-          {e.platform?.name || e.name}
-        </a>
+      <td>
+        <div className="awem-name-line">
+          <a
+            href={`/executors/${encodeURIComponent(e.name)}`}
+            className={e.platform?.name ? '' : 'mono'}
+            title={e.platform?.agent_name ? `数字工人：${e.platform.agent_name}` : undefined}
+            onClick={(ev) => { ev.preventDefault(); navigate(`/executors/${encodeURIComponent(e.name)}`) }}
+          >
+            {e.platform?.name || e.name}
+          </a>
+          {e.drift && e.drift.fields.length > 0 ? (
+            <span className="awem-pill warn" title={e.drift.message}>
+              {t.status.drift} {e.drift.fields.length}
+            </span>
+          ) : null}
+        </div>
         {e.platform?.name ? (
-          <div className="awem-hint mono" style={{ fontSize: 12 }}>{e.name}</div>
-        ) : null}
-        {e.drift && e.drift.fields.length > 0 ? (
-          <span className="awem-pill warn" style={{ marginLeft: 8 }} title={e.drift.message}>
-            {t.status.drift} {e.drift.fields.length}
-          </span>
+          <div className="awem-hint mono awem-cell-truncate" style={{ fontSize: 12 }} title={e.name}>{e.name}</div>
         ) : null}
       </td>
       {linked ? (
-        <>
-          <td className="awem-hint">{e.platform?.project || '—'}</td>
-          <td className="awem-hint">{e.platform?.squad || '—'}</td>
-        </>
+        <td>
+          {squadText || project ? (
+            <>
+              <div className="awem-cell-truncate" title={squadText || undefined}>{squadText || '—'}</div>
+              {project ? (
+                <div className="awem-hint awem-cell-truncate" style={{ fontSize: 12 }} title={project}>{project}</div>
+              ) : null}
+            </>
+          ) : (
+            <span className="awem-hint">—</span>
+          )}
+        </td>
       ) : null}
+      <td className="mono" title={version ? `autowonder@${version}` : undefined}>
+        {version || '—'}
+      </td>
       <td><StatusDot kind={localStateKind(e.local.state)} text={localStateText[e.local.state] ?? e.local.state} /></td>
       <td className="awem-hint">{e.local.conn === 'connected' ? t.status.connected : e.local.conn === 'reconnecting' ? t.status.reconnecting : e.local.conn}</td>
       <td>
@@ -402,21 +441,12 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [batchConfirm, setBatchConfirm] = useState<
     { kind: 'stop' | 'delete'; targets: BatchTarget[] } | null
   >(null)
-  const [mode, setMode] = useState<ViewMode>('flat')
+  const [sel, setSel] = useState<TreeSel>({ kind: 'all' })
   const [collapsed, setCollapsed] = useState<Set<string>>(loadCollapsed)
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS)
   const headRef = useRef<HTMLInputElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
-
-  // Tab 选择写 URL hash（本期仅 #tab=list），刷新/前进后退保持。
-  useEffect(() => {
-    const ensure = () => {
-      if (location.hash !== TAB_HASH) history.replaceState(null, '', TAB_HASH)
-    }
-    ensure()
-    window.addEventListener('hashchange', ensure)
-    return () => window.removeEventListener('hashchange', ensure)
-  }, [])
+  const treeRef = useRef<HTMLDivElement>(null)
 
   const refresh = useCallback(() => {
     listExecutors(onUnauthorized)
@@ -434,7 +464,7 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
   }, [refresh])
 
   const rowCount = rows?.length ?? 0
-  // 平台联动/归属展示基于全量数据；筛选不改变列结构。
+  // 平台联动/归属展示基于全量数据；筛选与树选择不改变列结构。
   const linked = rows?.some((e) => e.platform) ?? false
   const hasOwnership = (rows ?? []).some((e) => {
     const p = e.platform
@@ -442,22 +472,13 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
   })
 
   const filtersActive = filterActive(filters)
-  const filteredRows = useMemo(
-    () => (rows ?? []).filter((e) => matchesFilters(e, filters)),
-    [rows, filters],
+  const tree = useMemo(() => buildTree(rows ?? []), [rows])
+  const viewRows = useMemo(
+    () => (rows ?? []).filter((e) => inTreeSel(e, sel) && matchesFilters(e, filters)),
+    [rows, sel, filters],
   )
-  const filteredCount = filteredRows.length
+  const filteredCount = viewRows.length
 
-  const projectOptions = useMemo(() => {
-    const set = new Set<string>()
-    for (const e of rows ?? []) if (e.platform?.project) set.add(e.platform.project)
-    return [...set].sort(collator.compare)
-  }, [rows])
-  const squadOptions = useMemo(() => {
-    const set = new Set<string>()
-    for (const e of rows ?? []) for (const s of squadNamesOf(e)) set.add(s)
-    return [...set].sort(collator.compare)
-  }, [rows])
   const localOptions = useMemo(() => {
     const extra = new Set<string>()
     for (const e of rows ?? []) {
@@ -466,12 +487,33 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
     return [...LOCAL_STATE_ORDER, ...[...extra].sort()]
   }, [rows])
 
+  // 树选中节点随轮询失效（项目/小队消失或无归属数据）时回退「全部执行器」。
+  useEffect(() => {
+    if (sel.kind === 'all') return
+    if (!hasOwnership) {
+      setSel({ kind: 'all' })
+      return
+    }
+    if (sel.kind === 'unowned') {
+      if (tree.unowned.leaves.length === 0) setSel({ kind: 'all' })
+      return
+    }
+    const p = tree.projects.find((x) => x.name === sel.project)
+    if (!p) {
+      setSel({ kind: 'all' })
+      return
+    }
+    if (sel.kind === 'squad' && !p.squads.some((s) => s.name === sel.squad)) {
+      setSel({ kind: 'all' })
+    }
+  }, [tree, hasOwnership, sel])
+
   // 选择按执行器名称保持：轮询后消失或不再命中的行移出选择，新行默认不选中。
   useEffect(() => {
     if (!rows) return
     setSelected((prev) => {
       if (prev.size === 0) return prev
-      const visible = new Set(filteredRows.map((r) => r.name))
+      const visible = new Set(viewRows.map((r) => r.name))
       let changed = false
       const next = new Set<string>()
       for (const name of prev) {
@@ -480,47 +522,32 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
       }
       return changed ? next : prev
     })
-  }, [rows, filteredRows])
+  }, [rows, viewRows])
 
-  // 选项随数据刷新：选中值失效或归属条件被隐藏时回退「全部」并清空已选。
+  // 本地进程选项随数据刷新：选中值失效时回退「全部」并清空已选。
   useEffect(() => {
-    const projectInvalid = filters.project !== FILTER_ALL
-      && filters.project !== FILTER_UNOWNED
-      && !projectOptions.includes(filters.project)
-    const squadInvalid = filters.squad !== FILTER_ALL
-      && filters.squad !== FILTER_UNASSIGNED_SQUAD
-      && !squadOptions.includes(filters.squad)
-    const localInvalid = filters.local !== FILTER_ALL && !localOptions.includes(filters.local)
-    const ownershipHidden = !hasOwnership
-      && (filters.project !== FILTER_ALL || filters.squad !== FILTER_ALL)
-    if (!projectInvalid && !squadInvalid && !localInvalid && !ownershipHidden) return
-    setFilters((prev) => {
-      const next = { ...prev }
-      if (projectInvalid || ownershipHidden) next.project = FILTER_ALL
-      if (squadInvalid || ownershipHidden) next.squad = FILTER_ALL
-      if (localInvalid) next.local = FILTER_ALL
-      return next
-    })
+    if (filters.local === FILTER_ALL || localOptions.includes(filters.local)) return
+    setFilters((prev) => ({ ...prev, local: FILTER_ALL }))
     setSelected(new Set())
-  }, [filters, projectOptions, squadOptions, localOptions, hasOwnership])
+  }, [filters, localOptions])
 
-  const allSelected = filteredCount > 0 && filteredRows.every((r) => selected.has(r.name))
-  const someSelected = filteredRows.some((r) => selected.has(r.name)) && !allSelected
+  const allSelected = filteredCount > 0 && viewRows.every((r) => selected.has(r.name))
+  const someSelected = viewRows.some((r) => selected.has(r.name)) && !allSelected
   useEffect(() => {
     if (headRef.current) headRef.current.indeterminate = someSelected
   }, [someSelected])
 
   const locked = batchBusy !== null || busyName !== ''
-  const selectedRows = filteredRows.filter((r) => selected.has(r.name))
+  const selectedRows = viewRows.filter((r) => selected.has(r.name))
   const targetsOf = (list: ExecutorView[]): BatchTarget[] =>
     list.map((r) => ({ name: r.name, label: r.platform?.name || r.name }))
 
   const toggleAll = () => {
-    if (filteredRows.length === 0) return
+    if (viewRows.length === 0) return
     setSelected((prev) =>
-      filteredRows.every((r) => prev.has(r.name))
+      viewRows.every((r) => prev.has(r.name))
         ? new Set<string>()
-        : new Set(filteredRows.map((r) => r.name)),
+        : new Set(viewRows.map((r) => r.name)),
     )
   }
 
@@ -533,20 +560,7 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
     })
   }
 
-  const toggleGroup = (names: string[]) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      const all = names.length > 0 && names.every((n) => next.has(n))
-      for (const n of names) {
-        if (all) next.delete(n)
-        else next.add(n)
-      }
-      return next
-    })
-  }
-
   const toggleCollapsed = (key: string) => {
-    if (filtersActive) return // 筛选期间命中路径统一展开，不写入折叠记忆
     setCollapsed((prev) => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
@@ -554,6 +568,12 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
       saveCollapsed(next)
       return next
     })
+  }
+
+  // 切换树节点 = 切换过滤范围：与筛选变化一致，清空已选。
+  const selectNode = (next: TreeSel) => {
+    setSel(next)
+    setSelected(new Set())
   }
 
   const updateFilters = (patch: Partial<FilterState>) => {
@@ -565,8 +585,6 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
     setFilters(EMPTY_FILTERS)
     setSelected(new Set())
   }
-
-  const isCollapsed = (key: string) => !filtersActive && collapsed.has(key)
 
   const act = async (name: string, action: 'start' | 'stop' | 'restart') => {
     setBusyName(name)
@@ -693,36 +711,38 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
     await batchRun('delete', targets)
   }
 
-  useEffect(() => {
-    if (!hasOwnership && mode === 'tree') setMode('flat')
-  }, [hasOwnership, mode])
-
-  const tree = useMemo(() => buildTree(filteredRows), [filteredRows])
-  const columnCount = linked ? 12 : 10
-  // 工具行在列表非空时常驻（无归属数据也保留，仅隐藏平铺/树形切换）
+  const columnCount = linked ? 11 : 10
+  // 工具行在列表非空时常驻
   const showToolbar = rows !== null && !error && rows.length > 0
+  const showTree = hasOwnership
 
-  // 表体最大高度 = 视口剩余空间（顶栏/页头/Tab/筛选行/工具行/表头之外），
-  // 行数少时保持自然高度；过矮时保留 240px 表体兜底（允许页面滚动）。
+  // 表格/左树最大高度 = 各自顶边到视口底的剩余空间（同一公式分别计算，保证两者底边对齐）；
+  // 行数少时保持自然高度（flex stretch 已让树与表格区同高）；过矮时保留 240px 表体兜底
+  // （允许页面滚动）。
   useLayoutEffect(() => {
     const el = wrapRef.current
     if (!el) return
-    const update = () => {
-      const rect = el.getBoundingClientRect()
+    const limitHeight = (target: HTMLElement, reserveHeader: boolean) => {
+      const rect = target.getBoundingClientRect()
       const docTop = rect.top + window.scrollY
-      const main = el.closest('.awem-main') as HTMLElement | null
+      const main = target.closest('.awem-main') as HTMLElement | null
       const bottomPad = main ? (parseFloat(getComputedStyle(main).paddingBottom) || 0) : 24
-      const thead = el.querySelector('thead') as HTMLElement | null
-      const headerH = Math.ceil(thead?.getBoundingClientRect().height ?? 37)
+      const thead = target.querySelector('thead') as HTMLElement | null
+      const headerH = reserveHeader ? Math.ceil(thead?.getBoundingClientRect().height ?? 37) : 0
       const available = Math.floor(window.innerHeight - docTop - bottomPad) - 1
       const maxHeight = Math.max(240 + headerH + 2, available) // +2 为容器上下边框
       const next = `${maxHeight}px`
-      if (el.style.maxHeight !== next) el.style.maxHeight = next
+      if (target.style.maxHeight !== next) target.style.maxHeight = next
+    }
+    const update = () => {
+      limitHeight(el, true)
+      const treeEl = treeRef.current
+      if (treeEl) limitHeight(treeEl, false)
     }
     update()
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
-  }, [rows, mode, filters, hasOwnership, error])
+  }, [rows, filters, sel, hasOwnership, error])
 
   return (
     <div className="awem-page">
@@ -733,44 +753,38 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
         </button>
       </div>
 
-      <div className="awem-tabs" role="tablist" aria-label={t.tabs.label}>
-        <button
-          type="button"
-          role="tab"
-          id="tab-list"
-          aria-selected="true"
-          aria-controls="tabpanel-list"
-          tabIndex={0}
-          className="awem-tab"
-          onKeyDown={(e) => {
-            if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) e.preventDefault()
-          }}
-        >
-          {t.tabs.list}
-        </button>
-      </div>
-
-      <div role="tabpanel" id="tabpanel-list" aria-labelledby="tab-list">
-        {rows === null ? (
-          <div className="awem-table-wrap" aria-busy="true">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 4 }}>
-              <div className="awem-skeleton" /><div className="awem-skeleton" /><div className="awem-skeleton" />
+      {rows === null ? (
+        <div className="awem-table-wrap" aria-busy="true">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 4 }}>
+            <div className="awem-skeleton" /><div className="awem-skeleton" /><div className="awem-skeleton" />
+          </div>
+        </div>
+      ) : error ? (
+        <div className="awem-empty">
+          <span className="awem-error-text">{error}</span>
+          <button className="awem-btn awem-btn-secondary" onClick={refresh}>{t.common.retry}</button>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="awem-empty awem-card">
+          <span>还没有执行器</span>
+          <button className="awem-btn awem-btn-primary" onClick={() => navigate('/add')}>
+            {t.actions.addExecutor}
+          </button>
+        </div>
+      ) : (
+        <div className="awem-overview-layout">
+          {showTree ? (
+            <div ref={treeRef} className="awem-navtree-wrap">
+              <NavTree
+                model={tree}
+                sel={sel}
+                collapsed={collapsed}
+                onSelect={selectNode}
+                onToggle={toggleCollapsed}
+              />
             </div>
-          </div>
-        ) : error ? (
-          <div className="awem-empty">
-            <span className="awem-error-text">{error}</span>
-            <button className="awem-btn awem-btn-secondary" onClick={refresh}>{t.common.retry}</button>
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="awem-empty awem-card">
-            <span>还没有执行器</span>
-            <button className="awem-btn awem-btn-primary" onClick={() => navigate('/add')}>
-              {t.actions.addExecutor}
-            </button>
-          </div>
-        ) : (
-          <>
+          ) : null}
+          <div className="awem-overview-main">
             {/* 查询条件：位于工具行上方、表格滚动容器之外；加载/错误/空列表不渲染 */}
             {showToolbar ? (
               <div className="awem-filter-bar" role="group" aria-label={t.filters.label}>
@@ -783,47 +797,18 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                     onChange={(e) => updateFilters({ name: e.target.value })}
                   />
                 </label>
-                {hasOwnership ? (
-                  <>
-                    <label className="awem-filter-field">
-                      <span className="awem-filter-label">{t.filters.project}</span>
-                      <select
-                        className="awem-select awem-filter-control"
-                        value={filters.project}
-                        onChange={(e) => updateFilters({ project: e.target.value })}
-                      >
-                        <option value={FILTER_ALL}>{t.filters.all}</option>
-                        {projectOptions.map((p) => <option key={p} value={p}>{p}</option>)}
-                        <option value={FILTER_UNOWNED}>{t.filters.unowned}</option>
-                      </select>
-                    </label>
-                    <label className="awem-filter-field">
-                      <span className="awem-filter-label">{t.filters.squad}</span>
-                      <select
-                        className="awem-select awem-filter-control"
-                        value={filters.squad}
-                        onChange={(e) => updateFilters({ squad: e.target.value })}
-                      >
-                        <option value={FILTER_ALL}>{t.filters.all}</option>
-                        {squadOptions.map((s) => <option key={s} value={s}>{s}</option>)}
-                        <option value={FILTER_UNASSIGNED_SQUAD}>{t.filters.unassignedSquad}</option>
-                      </select>
-                    </label>
-                  </>
-                ) : null}
-                <label className="awem-filter-field">
+                <div className="awem-filter-field">
                   <span className="awem-filter-label">{t.filters.local}</span>
-                  <select
-                    className="awem-select awem-filter-control"
+                  <Select
+                    ariaLabel={t.filters.local}
                     value={filters.local}
-                    onChange={(e) => updateFilters({ local: e.target.value })}
-                  >
-                    <option value={FILTER_ALL}>{t.filters.all}</option>
-                    {localOptions.map((s) => (
-                      <option key={s} value={s}>{localStateText[s] ?? s}</option>
-                    ))}
-                  </select>
-                </label>
+                    options={[
+                      { value: FILTER_ALL, label: t.filters.all },
+                      ...localOptions.map((s) => ({ value: s, label: localStateText[s] ?? s })),
+                    ]}
+                    onChange={(v) => updateFilters({ local: v })}
+                  />
+                </div>
                 <button
                   type="button"
                   className="awem-btn awem-btn-secondary awem-btn-compact awem-filter-reset"
@@ -833,7 +818,7 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
               </div>
             ) : null}
             {/* 工具行常驻（行高锁定 32px）：无选中显示计数提示，有选中切换为批量操作条，
-                避免批量条出现/消失把表格顶上顶下；平铺/树形切换无归属数据时隐藏 */}
+                避免批量条出现/消失把表格顶上顶下 */}
             {showToolbar ? (
               <div className="awem-table-toolbar">
                 {selected.size > 0 ? (
@@ -862,23 +847,15 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                   </div>
                 ) : (
                   <span className="awem-hint">
-                    {filtersActive ? t.filters.count(filteredCount, rowCount) : t.filters.total(rowCount)}
+                    {filtersActive || sel.kind !== 'all'
+                      ? t.filters.count(filteredCount, rowCount)
+                      : t.filters.total(rowCount)}
                   </span>
                 )}
-                {hasOwnership ? (
-                  <div className="awem-segmented" role="group" aria-label={t.views.label}>
-                    <button type="button" aria-pressed={mode === 'flat'} onClick={() => setMode('flat')}>
-                      {t.views.flat}
-                    </button>
-                    <button type="button" aria-pressed={mode === 'tree'} onClick={() => setMode('tree')}>
-                      {t.views.tree}
-                    </button>
-                  </div>
-                ) : null}
               </div>
             ) : null}
             <div className="awem-table-wrap awem-overview-table-wrap" ref={wrapRef}>
-              <table className={`awem-table${mode === 'tree' ? ' awem-table-tree' : ''}`}>
+              <table className="awem-table">
                 <thead>
                   <tr>
                     <th className="awem-col-check">
@@ -893,12 +870,8 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                       />
                     </th>
                     <th>名称</th>
-                    {linked ? (
-                      <>
-                        <th>所属项目</th>
-                        <th>所属小队</th>
-                      </>
-                    ) : null}
+                    {linked ? <th>{t.columns.squad}</th> : null}
+                    <th>{t.columns.version}</th>
                     <th>{t.status.local}</th>
                     <th>连接</th>
                     <th>{t.status.platform}（平台轮询）</th>
@@ -921,12 +894,11 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                         </div>
                       </td>
                     </tr>
-                  ) : mode === 'flat'
-                    ? filteredRows.map((e) => (
+                  ) : (
+                    viewRows.map((e) => (
                       <ExecutorRow
                         key={e.name}
                         e={e}
-                        level={0}
                         linked={linked}
                         selected={selected.has(e.name)}
                         locked={locked}
@@ -941,111 +913,13 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                         })}
                       />
                     ))
-                    : (
-                      <>
-                        {tree.projects.map((p) => (
-                          <Fragment key={p.key}>
-                            <GroupRow
-                              level={1}
-                              groupKey={p.key}
-                              name={p.name}
-                              names={p.names}
-                              selected={selected}
-                              locked={locked}
-                              collapsed={isCollapsed(p.key)}
-                              badge={t.tree.badge(p.online, p.names.length)}
-                              checkboxLabel={t.tree.projectCheckbox(p.name)}
-                              colSpan={columnCount}
-                              onToggleCollapsed={() => toggleCollapsed(p.key)}
-                              onToggleAll={toggleGroup}
-                            />
-                            {!isCollapsed(p.key) && p.squads.map((s) => (
-                              <Fragment key={s.key}>
-                                <GroupRow
-                                  level={2}
-                                  groupKey={s.key}
-                                  project={p.name}
-                                  name={s.name}
-                                  names={s.names}
-                                  selected={selected}
-                                  locked={locked}
-                                  collapsed={isCollapsed(s.key)}
-                                  badge={t.tree.badge(s.online, s.names.length)}
-                                  checkboxLabel={t.tree.squadCheckbox(s.name)}
-                                  colSpan={columnCount}
-                                  onToggleCollapsed={() => toggleCollapsed(s.key)}
-                                  onToggleAll={toggleGroup}
-                                />
-                                {!isCollapsed(s.key) && s.leaves.map((e) => (
-                                  <ExecutorRow
-                                    key={`${s.key}/${e.name}`}
-                                    e={e}
-                                    level={3}
-                                    project={p.name}
-                                    squad={s.name}
-                                    linked={linked}
-                                    selected={selected.has(e.name)}
-                                    locked={locked}
-                                    busyName={busyName}
-                                    batchBusy={batchBusy}
-                                    onToggle={toggleOne}
-                                    onAct={act}
-                                    onStop={(x) => setConfirm({ kind: 'stop', name: x.name, running: x.local.state === 'running' })}
-                                    onRemove={(x) => setConfirm({
-                                      kind: 'remove', name: x.name,
-                                      running: isRunningLike(x.local.state),
-                                    })}
-                                  />
-                                ))}
-                              </Fragment>
-                            ))}
-                          </Fragment>
-                        ))}
-                        {tree.unowned.leaves.length > 0 ? (
-                          <Fragment key="unowned">
-                            <GroupRow
-                              level={1}
-                              groupKey="unowned"
-                              name={t.tree.unowned}
-                              names={tree.unowned.names}
-                              selected={selected}
-                              locked={locked}
-                              collapsed={isCollapsed('unowned')}
-                              badge={t.tree.unownedBadge(tree.unowned.names.length)}
-                              checkboxLabel={t.tree.unownedCheckbox}
-                              colSpan={columnCount}
-                              onToggleCollapsed={() => toggleCollapsed('unowned')}
-                              onToggleAll={toggleGroup}
-                            />
-                            {!isCollapsed('unowned') && tree.unowned.leaves.map((e) => (
-                              <ExecutorRow
-                                key={`unowned/${e.name}`}
-                                e={e}
-                                level={2}
-                                linked={linked}
-                                selected={selected.has(e.name)}
-                                locked={locked}
-                                busyName={busyName}
-                                batchBusy={batchBusy}
-                                onToggle={toggleOne}
-                                onAct={act}
-                                onStop={(x) => setConfirm({ kind: 'stop', name: x.name, running: x.local.state === 'running' })}
-                                onRemove={(x) => setConfirm({
-                                  kind: 'remove', name: x.name,
-                                  running: isRunningLike(x.local.state),
-                                })}
-                              />
-                            ))}
-                          </Fragment>
-                        ) : null}
-                      </>
-                    )}
+                  )}
                 </tbody>
               </table>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
 
       {confirm ? (
         <Dialog

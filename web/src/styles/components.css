@@ -106,8 +106,10 @@
 }
 
 /* 总览列表：表体最大高度=视口剩余空间（行内 JS 精确计算；此处为 dvh 回退）。
-   仅表体滚动，表头吸顶；行数少时自然高度，不产生空滚动区。 */
+   仅表体滚动，表头吸顶；flex: 1 0 auto 让表格卡片在右列内撑满补齐（与左树同高，
+   树内容更高时表格卡片同步到底边），内容更高时由 max-height 限高转为内部滚动。 */
 .awem-overview-table-wrap {
+  flex: 1 0 auto;
   overflow: auto;
   max-height: calc(100dvh - 340px);
 }
@@ -148,6 +150,28 @@
 }
 .awem-table tbody tr:last-child td {
   border-bottom: none;
+}
+/* 名称单元格首行：链接 + 漂移徽标一行；链接为可收缩项，宽度不足截断 */
+.awem-name-line {
+  display: flex;
+  align-items: center;
+  gap: var(--awem-space-2);
+}
+.awem-name-line > a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.awem-name-line > .awem-pill {
+  flex: none;
+}
+/* 可收缩列（名称副行 / 所属小队双行）：overflow:hidden 使 min-content 可压缩，
+   表格自动布局在空间不足时压缩这些列并截断，而不是撑出横向滚动条（§3） */
+.awem-cell-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .awem-table tbody tr:hover {
   background: var(--awem-bg-subtle);
@@ -206,8 +230,7 @@
   color: var(--awem-fg-secondary);
 }
 .awem-input,
-.awem-textarea,
-.awem-select {
+.awem-textarea {
   height: 36px;
   padding: 0 var(--awem-space-3);
   border: 1px solid var(--awem-border);
@@ -227,11 +250,98 @@
   resize: vertical;
 }
 .awem-input:focus-visible,
-.awem-textarea:focus-visible,
-.awem-select:focus-visible {
+.awem-textarea:focus-visible {
   outline: 2px solid var(--awem-accent);
   outline-offset: -1px;
   border-color: var(--awem-accent);
+}
+
+/* --- 下拉选择（Select 组件，§4）：触发按钮同输入框外观；弹层卡片 + 浮层阴影 --- */
+.awem-select {
+  position: relative;
+}
+.awem-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--awem-space-2);
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--awem-space-3);
+  border: 1px solid var(--awem-border);
+  border-radius: var(--awem-radius-control);
+  background: var(--awem-bg);
+  color: var(--awem-fg);
+  font-size: var(--awem-text-14);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.awem-select-trigger:focus-visible {
+  outline: 2px solid var(--awem-accent);
+  outline-offset: -1px;
+  border-color: var(--awem-accent);
+}
+.awem-select-trigger[aria-expanded='true'] {
+  border-color: var(--awem-accent);
+}
+.awem-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.awem-select-caret {
+  flex: none;
+  color: var(--awem-fg-secondary);
+}
+.awem-select-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 280px;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--awem-space-1);
+  list-style: none;
+  background: var(--awem-bg);
+  border: 1px solid var(--awem-border);
+  border-radius: var(--awem-radius-control);
+  box-shadow: var(--awem-shadow-float);
+  z-index: 20;
+}
+.awem-select-option {
+  display: flex;
+  align-items: center;
+  gap: var(--awem-space-2);
+  height: 32px;
+  padding: 0 var(--awem-space-2);
+  border-radius: var(--awem-radius-control);
+  font-size: var(--awem-text-13);
+  cursor: pointer;
+}
+.awem-select-option:hover,
+.awem-select-option[data-active] {
+  background: var(--awem-bg-muted);
+}
+.awem-select-option[aria-selected='true'] {
+  color: var(--awem-accent);
+  font-weight: 500;
+}
+.awem-select-check {
+  display: inline-flex;
+  width: 16px;
+  flex: none;
+}
+.awem-select-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .awem-input.mono {
   font-family: var(--awem-font-mono);
@@ -410,38 +520,159 @@
   font-size: var(--awem-text-12);
 }
 
-/* --- Tabs（一期：仅「列表」；二期预留图表） --- */
-.awem-tabs {
+/* --- 总览左树右表布局（§3，2026-10-27 起） --- */
+.awem-overview-layout {
   display: flex;
   gap: var(--awem-space-4);
-  border-bottom: 1px solid var(--awem-border);
-  margin-bottom: var(--awem-space-4);
+  /* stretch：左树与右侧（筛选行+工具行+表格）同高 */
+  align-items: stretch;
 }
-.awem-tab {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  padding: var(--awem-space-2) 0;
-  font-size: var(--awem-text-14);
-  font-family: inherit;
-  color: var(--awem-fg-secondary);
-  cursor: pointer;
-  transition: color var(--awem-motion-fast), border-color var(--awem-motion-fast);
+/* min-width: 0 让表格横向滚动发生在容器内，而非撑破 flex 布局；
+   flex 纵向排布使表格卡片（flex:1）可在右列内撑满补齐，与左树同高 */
+.awem-overview-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
-.awem-tab:hover {
-  color: var(--awem-fg);
+.awem-navtree-wrap {
+  flex: none;
+  width: 280px;
+  /* flex 纵向排布：树卡片 flex:1 撑满 wrap（与表格区同高），内容更高时内部滚动。
+     最大高度由 JS 按视口计算（§3）；此处为回退。横向永不滚动：节点名截断 + title 提示 */
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 200px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
-.awem-tab[aria-selected='true'] {
-  color: var(--awem-fg);
-  border-bottom-color: var(--awem-accent);
-}
-.awem-tab:focus-visible {
-  outline: 2px solid var(--awem-accent);
-  outline-offset: 2px;
+@supports not (height: 100dvh) {
+  .awem-navtree-wrap {
+    max-height: calc(100vh - 200px);
+  }
 }
 
-/* --- 列表工具行与平铺/树形分段切换（高 32px） --- */
+/* 导航树（§4）：节点 36px、选中态 muted 底 + 左 2px accent 指示；
+   flex: 1 0 auto 在 wrap 内撑满（卡片背景与表格同高），内容更高时由 wrap 滚动 */
+.awem-navtree {
+  flex: 1 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--awem-border);
+  border-radius: var(--awem-radius-card);
+  background: var(--awem-bg-subtle);
+  padding: var(--awem-space-2);
+}
+.awem-navtree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+/* 项目行（chevron + 节点）：悬浮/选中背景覆盖整行（横向沾满，左右留卡片内边距），
+   chevron 区域不做独立背景，避免出现两段式高亮 */
+.awem-navtree-row {
+  display: flex;
+  align-items: center;
+  gap: var(--awem-space-1);
+  border-left: 2px solid transparent;
+  border-radius: var(--awem-radius-control);
+}
+.awem-navtree-row:hover {
+  background: var(--awem-bg-muted);
+}
+.awem-navtree-row:has(.awem-navtree-node[aria-current='true']) {
+  background: var(--awem-bg-muted);
+  border-left-color: var(--awem-accent);
+}
+.awem-navtree-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 36px;
+  flex: none;
+  border: none;
+  background: none;
+  color: var(--awem-fg-secondary);
+  cursor: pointer;
+  border-radius: var(--awem-radius-control);
+  padding: 0;
+}
+.awem-navtree-chevron:hover {
+  color: var(--awem-fg);
+}
+.awem-navtree-node {
+  display: flex;
+  align-items: center;
+  gap: var(--awem-space-2);
+  flex: 1;
+  min-width: 0;
+  /* button 元素的 width:auto 按内容计算（表单控件特性），需显式 100% 才收敛到容器宽；
+     项目行内 flex-basis 优先于 width，行为不变 */
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--awem-space-2);
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: var(--awem-radius-control);
+  background: none;
+  color: var(--awem-fg);
+  font-size: var(--awem-text-13);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+/* 项目行内的节点：背景与 accent 边条由行容器承担 */
+.awem-navtree-row .awem-navtree-node {
+  border-left: none;
+}
+.awem-navtree-row .awem-navtree-node:hover,
+.awem-navtree-row .awem-navtree-node[aria-current='true'] {
+  background: none;
+}
+/* 根节点/未归属的占位条：与项目名（chevron 20px + gap 4px）对齐 */
+.awem-navtree-spacer {
+  width: 24px;
+  flex: none;
+}
+/* 小队节点（第 2 级）：缩进 16px/级（相对项目名起点） */
+.awem-navtree-node[data-squad] {
+  padding-left: 48px;
+}
+.awem-navtree-node:hover {
+  background: var(--awem-bg-muted);
+}
+.awem-navtree-node[aria-current='true'] {
+  background: var(--awem-bg-muted);
+  border-left-color: var(--awem-accent);
+  font-weight: 600;
+}
+.awem-navtree-node:focus-visible,
+.awem-navtree-chevron:focus-visible {
+  outline: 2px solid var(--awem-accent);
+  outline-offset: -2px;
+}
+.awem-navtree-name {
+  /* flex 子项默认 min-width:auto 会被长文本撑开；显式允许收缩才能真正截断 */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 树节点徽标 `在线数/成员数`（mono 12px pill） */
+.awem-tree-badge {
+  margin-left: auto;
+  flex: none;
+  padding: 0 var(--awem-space-2);
+  border-radius: var(--awem-radius-pill);
+  background: var(--awem-bg-muted);
+  color: var(--awem-fg-secondary);
+  font-family: var(--awem-font-mono);
+  font-size: var(--awem-text-12);
+}
+
+/* --- 列表工具行（高 32px） --- */
 .awem-table-toolbar {
   display: flex;
   align-items: center;
@@ -450,36 +681,6 @@
   margin-bottom: var(--awem-space-2);
   /* 行高锁定 32px：左侧计数提示 ⇄ 批量操作条切换不顶动下方表格 */
   min-height: 32px;
-}
-.awem-segmented {
-  display: inline-flex;
-  height: 32px;
-  border: 1px solid var(--awem-border);
-  border-radius: var(--awem-radius-control);
-  overflow: hidden;
-  background: var(--awem-bg);
-}
-.awem-segmented button {
-  border: none;
-  background: transparent;
-  padding: 0 var(--awem-space-3);
-  font-size: var(--awem-text-13);
-  font-family: inherit;
-  color: var(--awem-fg-secondary);
-  cursor: pointer;
-  transition: background var(--awem-motion-fast), color var(--awem-motion-fast);
-}
-.awem-segmented button:hover {
-  color: var(--awem-fg);
-}
-.awem-segmented button[aria-pressed='true'] {
-  background: var(--awem-bg-muted);
-  color: var(--awem-fg);
-  font-weight: 600;
-}
-.awem-segmented button:focus-visible {
-  outline: 2px solid var(--awem-accent);
-  outline-offset: -2px;
 }
 
 /* --- 总览查询条件行（表格滚动容器之外；≤768px 允许换行） --- */
@@ -510,6 +711,12 @@
 .awem-filter-field .awem-select {
   min-width: 132px;
 }
+/* 筛选行内的 Select 触发按钮与 32px 控件规格对齐 */
+.awem-filter-field .awem-select-trigger {
+  height: 32px;
+  padding: 0 var(--awem-space-2);
+  font-size: var(--awem-text-13);
+}
 .awem-filter-reset {
   flex: none;
 }
@@ -533,55 +740,6 @@
   gap: var(--awem-space-3);
   padding: var(--awem-space-8) var(--awem-space-4);
   color: var(--awem-fg-secondary);
-}
-
-/* --- 树形列表（组行 44px；缩进由行内 style 按 16px/级） --- */
-.awem-tree-group {
-  background: var(--awem-bg-subtle);
-}
-.awem-tree-group:hover {
-  background: var(--awem-bg-muted);
-}
-.awem-tree-group td {
-  height: 44px;
-}
-.awem-tree-group-cell {
-  display: flex;
-  align-items: center;
-  gap: var(--awem-space-2);
-  height: 44px;
-  padding-right: var(--awem-space-3);
-}
-.awem-tree-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--awem-space-1);
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--awem-fg);
-  font-size: var(--awem-text-13);
-  font-family: inherit;
-  cursor: pointer;
-}
-.awem-tree-toggle:focus-visible {
-  outline: 2px solid var(--awem-accent);
-  outline-offset: 2px;
-}
-.awem-tree-name {
-  font-weight: 600;
-}
-.awem-tree-badge {
-  margin-left: auto;
-  padding: 0 var(--awem-space-2);
-  border-radius: var(--awem-radius-pill);
-  background: var(--awem-bg-muted);
-  color: var(--awem-fg-secondary);
-  font-family: var(--awem-font-mono);
-  font-size: var(--awem-text-12);
-}
-.awem-tree-leaf > td {
-  height: 44px;
 }
 
 /* --- 运行时间带（高 20px；无数据斜纹；崩溃 danger ✕） --- */

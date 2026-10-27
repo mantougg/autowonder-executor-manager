@@ -28,13 +28,11 @@ const MIME = {
 
 function makeExecutor(spec) {
   const state = spec.state || 'stopped'
-  return {
-    name: spec.name,
-    command: `npx -y autowonder@0.3.22 connect --token test-token --executor-id ${spec.name}`,
-    autostart: Boolean(spec.autostart),
-    restart: { enabled: true, backoff: 'exponential' },
-    parsed: {
-      runtime_version: '0.3.22',
+  // runtime_version 为 null 时模拟解析缺失（parsed 整体为 null，版本列回退 —）。
+  const parsed = spec.runtime_version === null
+    ? null
+    : {
+      runtime_version: spec.runtime_version ?? '0.3.22',
       ws_url: 'wss://platform.invalid/ws',
       token: 'test-token',
       executor_id: spec.name,
@@ -47,7 +45,13 @@ function makeExecutor(spec) {
       token_aware: false,
       debug: false,
       passthrough: null,
-    },
+    }
+  return {
+    name: spec.name,
+    command: `npx -y autowonder@0.3.22 connect --token test-token --executor-id ${spec.name}`,
+    autostart: Boolean(spec.autostart),
+    restart: { enabled: true, backoff: 'exponential' },
+    parsed,
     local: {
       state,
       pid: RUNNING_LIKE.has(state) ? 4321 : 0,

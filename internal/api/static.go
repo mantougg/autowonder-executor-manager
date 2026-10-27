@@ -1,6 +1,9 @@
 // static.go：内嵌 SPA 静态资源服务（T01-F5 骨架，T06 增强）。
 // / 与未知前端路由 → index.html（SPA fallback）；其余命中 web/dist 内文件
 // 原样返回。完整 fallback 语义（/api、/ws 除外）在 F7 收口。
+// 缓存策略：assets/ 下为内容哈希文件名，长缓存 immutable；index.html 与
+// favicon 等稳定文件名 no-cache 每次重校验——daemon 升级后浏览器刷新即得新版，
+// 避免旧缓存壳引用已不存在的新/旧哈希资源。
 package api
 
 import (
@@ -21,6 +24,7 @@ func (s *Server) serveStatic(w http.ResponseWriter, r *http.Request) {
 	}
 	if data, err := fs.ReadFile(dist, name); err == nil {
 		w.Header().Set("Content-Type", mimeOf(name))
+		w.Header().Set("Cache-Control", cacheControlOf(name))
 		_, _ = w.Write(data)
 		return
 	}
@@ -31,7 +35,17 @@ func (s *Server) serveStatic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
 	_, _ = w.Write(data)
+}
+
+// cacheControlOf：assets/ 为内容哈希文件（文件名变即内容变），可 immutable 长缓存；
+// 其余（index.html、favicon.svg 等稳定文件名）必须每次重校验。
+func cacheControlOf(name string) string {
+	if strings.HasPrefix(name, "assets/") {
+		return "public, max-age=31536000, immutable"
+	}
+	return "no-cache"
 }
 
 // mimeOf 按扩展名给 Content-Type（构建产物只含常见 Web 资源类型）。
