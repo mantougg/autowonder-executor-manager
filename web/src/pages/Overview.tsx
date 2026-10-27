@@ -2,7 +2,7 @@
 // 标题下 Tab 容器（本期仅「列表」，hash #tab=list）+ 列表 tab：
 // 保留原表格/批量/5s 轮询能力，新增「平铺 ⇄ 树形」（项目 → 小队 → 执行器）。
 // 树形多小队执行器重复叶子、选择按执行器标识去重；未归属组固定排最后。
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Play, Square, RotateCw, Trash2, Plus, ChevronDown, ChevronRight } from 'lucide-react'
 import { t } from '../i18n'
 import {
@@ -23,6 +23,33 @@ const isRunningLike = (state: string) => RUNNING_LIKE.has(state)
 
 type BatchKind = 'start' | 'stop' | 'delete'
 type ViewMode = 'flat' | 'tree'
+
+// 筛选哨兵值：与真实项目/小队名隔离；选项标签走 i18n。
+const FILTER_ALL = '__all__'
+const FILTER_UNOWNED = '__unowned__'
+const FILTER_UNASSIGNED_SQUAD = '__unassigned_squad__'
+const LOCAL_STATE_ORDER = ['running', 'backoff', 'stopping', 'stopped', 'failed']
+
+interface FilterState {
+  name: string
+  project: string
+  squad: string
+  local: string
+}
+
+const EMPTY_FILTERS: FilterState = {
+  name: '',
+  project: FILTER_ALL,
+  squad: FILTER_ALL,
+  local: FILTER_ALL,
+}
+
+function filterActive(f: FilterState): boolean {
+  return f.name.trim() !== ''
+    || f.project !== FILTER_ALL
+    || f.squad !== FILTER_ALL
+    || f.local !== FILTER_ALL
+}
 
 interface BatchTarget {
   name: string
@@ -113,6 +140,25 @@ function squadNamesOf(e: ExecutorView): string[] {
   if (Array.isArray(arr) && arr.length > 0) return arr
   const joined = e.platform?.squad
   return joined ? joined.split('、').filter(Boolean) : []
+}
+
+// 四项条件 AND；名称匹配平台显示名或执行器标识（去空格、不区分大小写子串）。
+function matchesFilters(e: ExecutorView, f: FilterState): boolean {
+  const q = f.name.trim().toLocaleLowerCase()
+  if (q) {
+    const names = [e.platform?.name ?? '', e.name]
+    if (!names.some((n) => n.toLocaleLowerCase().includes(q))) return false
+  }
+  if (f.project !== FILTER_ALL) {
+    const project = e.platform?.project ?? ''
+    if (f.project === FILTER_UNOWNED ? project !== '' : project !== f.project) return false
+  }
+  if (f.squad !== FILTER_ALL) {
+    const squads = squadNamesOf(e)
+    if (f.squad === FILTER_UNASSIGNED_SQUAD ? squads.length > 0 : !squads.includes(f.squad)) return false
+  }
+  if (f.local !== FILTER_ALL && e.local.state !== f.local) return false
+  return true
 }
 
 const collator = new Intl.Collator('zh-CN')
@@ -358,7 +404,9 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
   >(null)
   const [mode, setMode] = useState<ViewMode>('flat')
   const [collapsed, setCollapsed] = useState<Set<string>>(loadCollapsed)
+  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS)
   const headRef = useRef<HTMLInputElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
 
   // Tab 选择写 URL hash（本期仅 #tab=list），刷新/前进后退保持。
   useEffect(() => {
@@ -385,12 +433,45 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
     return () => clearInterval(id)
   }, [refresh])
 
-  // 选择按执行器名称保持：轮询后消失的行移出选择，新行默认不选中。
+  const rowCount = rows?.length ?? 0
+  // 平台联动/归属展示基于全量数据；筛选不改变列结构。
+  const linked = rows?.some((e) => e.platform) ?? false
+  const hasOwnership = (rows ?? []).some((e) => {
+    const p = e.platform
+    return Boolean(p && (p.project || p.squad || (p.squad_names && p.squad_names.length > 0)))
+  })
+
+  const filtersActive = filterActive(filters)
+  const filteredRows = useMemo(
+    () => (rows ?? []).filter((e) => matchesFilters(e, filters)),
+    [rows, filters],
+  )
+  const filteredCount = filteredRows.length
+
+  const projectOptions = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of rows ?? []) if (e.platform?.project) set.add(e.platform.project)
+    return [...set].sort(collator.compare)
+  }, [rows])
+  const squadOptions = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of rows ?? []) for (const s of squadNamesOf(e)) set.add(s)
+    return [...set].sort(collator.compare)
+  }, [rows])
+  const localOptions = useMemo(() => {
+    const extra = new Set<string>()
+    for (const e of rows ?? []) {
+      if (!LOCAL_STATE_ORDER.includes(e.local.state)) extra.add(e.local.state)
+    }
+    return [...LOCAL_STATE_ORDER, ...[...extra].sort()]
+  }, [rows])
+
+  // 选择按执行器名称保持：轮询后消失或不再命中的行移出选择，新行默认不选中。
   useEffect(() => {
     if (!rows) return
     setSelected((prev) => {
       if (prev.size === 0) return prev
-      const visible = new Set(rows.map((r) => r.name))
+      const visible = new Set(filteredRows.map((r) => r.name))
       let changed = false
       const next = new Set<string>()
       for (const name of prev) {
@@ -399,26 +480,47 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
       }
       return changed ? next : prev
     })
-  }, [rows])
+  }, [rows, filteredRows])
 
-  const rowCount = rows?.length ?? 0
-  const allSelected = rowCount > 0 && (rows ?? []).every((r) => selected.has(r.name))
-  const someSelected = selected.size > 0 && !allSelected
+  // 选项随数据刷新：选中值失效或归属条件被隐藏时回退「全部」并清空已选。
+  useEffect(() => {
+    const projectInvalid = filters.project !== FILTER_ALL
+      && filters.project !== FILTER_UNOWNED
+      && !projectOptions.includes(filters.project)
+    const squadInvalid = filters.squad !== FILTER_ALL
+      && filters.squad !== FILTER_UNASSIGNED_SQUAD
+      && !squadOptions.includes(filters.squad)
+    const localInvalid = filters.local !== FILTER_ALL && !localOptions.includes(filters.local)
+    const ownershipHidden = !hasOwnership
+      && (filters.project !== FILTER_ALL || filters.squad !== FILTER_ALL)
+    if (!projectInvalid && !squadInvalid && !localInvalid && !ownershipHidden) return
+    setFilters((prev) => {
+      const next = { ...prev }
+      if (projectInvalid || ownershipHidden) next.project = FILTER_ALL
+      if (squadInvalid || ownershipHidden) next.squad = FILTER_ALL
+      if (localInvalid) next.local = FILTER_ALL
+      return next
+    })
+    setSelected(new Set())
+  }, [filters, projectOptions, squadOptions, localOptions, hasOwnership])
+
+  const allSelected = filteredCount > 0 && filteredRows.every((r) => selected.has(r.name))
+  const someSelected = filteredRows.some((r) => selected.has(r.name)) && !allSelected
   useEffect(() => {
     if (headRef.current) headRef.current.indeterminate = someSelected
   }, [someSelected])
 
   const locked = batchBusy !== null || busyName !== ''
-  const selectedRows = (rows ?? []).filter((r) => selected.has(r.name))
+  const selectedRows = filteredRows.filter((r) => selected.has(r.name))
   const targetsOf = (list: ExecutorView[]): BatchTarget[] =>
     list.map((r) => ({ name: r.name, label: r.platform?.name || r.name }))
 
   const toggleAll = () => {
-    if (!rows || rows.length === 0) return
+    if (filteredRows.length === 0) return
     setSelected((prev) =>
-      rows.every((r) => prev.has(r.name))
+      filteredRows.every((r) => prev.has(r.name))
         ? new Set<string>()
-        : new Set(rows.map((r) => r.name)),
+        : new Set(filteredRows.map((r) => r.name)),
     )
   }
 
@@ -444,6 +546,7 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
   }
 
   const toggleCollapsed = (key: string) => {
+    if (filtersActive) return // 筛选期间命中路径统一展开，不写入折叠记忆
     setCollapsed((prev) => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
@@ -452,6 +555,18 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
       return next
     })
   }
+
+  const updateFilters = (patch: Partial<FilterState>) => {
+    setFilters((prev) => ({ ...prev, ...patch }))
+    setSelected(new Set())
+  }
+
+  const resetFilters = () => {
+    setFilters(EMPTY_FILTERS)
+    setSelected(new Set())
+  }
+
+  const isCollapsed = (key: string) => !filtersActive && collapsed.has(key)
 
   const act = async (name: string, action: 'start' | 'stop' | 'restart') => {
     setBusyName(name)
@@ -578,22 +693,36 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
     await batchRun('delete', targets)
   }
 
-  // 平台联动展示判定：任一行有平台数据即展示归属列（未联动隐藏两列，
-  // 名称回退标识名——design §7.4）
-  const linked = rows?.some((e) => e.platform) ?? false
-  // 树形可用性：至少一行带项目/小队归属；否则隐藏切换并强制平铺。
-  const hasOwnership = (rows ?? []).some((e) => {
-    const p = e.platform
-    return Boolean(p && (p.project || p.squad || (p.squad_names && p.squad_names.length > 0)))
-  })
   useEffect(() => {
     if (!hasOwnership && mode === 'tree') setMode('flat')
   }, [hasOwnership, mode])
 
-  const tree = useMemo(() => buildTree(rows ?? []), [rows])
+  const tree = useMemo(() => buildTree(filteredRows), [filteredRows])
   const columnCount = linked ? 12 : 10
   // 工具行在列表非空时常驻（无归属数据也保留，仅隐藏平铺/树形切换）
   const showToolbar = rows !== null && !error && rows.length > 0
+
+  // 表体最大高度 = 视口剩余空间（顶栏/页头/Tab/筛选行/工具行/表头之外），
+  // 行数少时保持自然高度；过矮时保留 240px 表体兜底（允许页面滚动）。
+  useLayoutEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const update = () => {
+      const rect = el.getBoundingClientRect()
+      const docTop = rect.top + window.scrollY
+      const main = el.closest('.awem-main') as HTMLElement | null
+      const bottomPad = main ? (parseFloat(getComputedStyle(main).paddingBottom) || 0) : 24
+      const thead = el.querySelector('thead') as HTMLElement | null
+      const headerH = Math.ceil(thead?.getBoundingClientRect().height ?? 37)
+      const available = Math.floor(window.innerHeight - docTop - bottomPad) - 1
+      const maxHeight = Math.max(240 + headerH + 2, available) // +2 为容器上下边框
+      const next = `${maxHeight}px`
+      if (el.style.maxHeight !== next) el.style.maxHeight = next
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [rows, mode, filters, hasOwnership, error])
 
   return (
     <div className="awem-page">
@@ -642,6 +771,67 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
           </div>
         ) : (
           <>
+            {/* 查询条件：位于工具行上方、表格滚动容器之外；加载/错误/空列表不渲染 */}
+            {showToolbar ? (
+              <div className="awem-filter-bar" role="group" aria-label={t.filters.label}>
+                <label className="awem-filter-field awem-filter-name">
+                  <span className="awem-filter-label">{t.filters.name}</span>
+                  <input
+                    className="awem-input awem-filter-control"
+                    value={filters.name}
+                    placeholder={t.filters.name}
+                    onChange={(e) => updateFilters({ name: e.target.value })}
+                  />
+                </label>
+                {hasOwnership ? (
+                  <>
+                    <label className="awem-filter-field">
+                      <span className="awem-filter-label">{t.filters.project}</span>
+                      <select
+                        className="awem-select awem-filter-control"
+                        value={filters.project}
+                        onChange={(e) => updateFilters({ project: e.target.value })}
+                      >
+                        <option value={FILTER_ALL}>{t.filters.all}</option>
+                        {projectOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+                        <option value={FILTER_UNOWNED}>{t.filters.unowned}</option>
+                      </select>
+                    </label>
+                    <label className="awem-filter-field">
+                      <span className="awem-filter-label">{t.filters.squad}</span>
+                      <select
+                        className="awem-select awem-filter-control"
+                        value={filters.squad}
+                        onChange={(e) => updateFilters({ squad: e.target.value })}
+                      >
+                        <option value={FILTER_ALL}>{t.filters.all}</option>
+                        {squadOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                        <option value={FILTER_UNASSIGNED_SQUAD}>{t.filters.unassignedSquad}</option>
+                      </select>
+                    </label>
+                  </>
+                ) : null}
+                <label className="awem-filter-field">
+                  <span className="awem-filter-label">{t.filters.local}</span>
+                  <select
+                    className="awem-select awem-filter-control"
+                    value={filters.local}
+                    onChange={(e) => updateFilters({ local: e.target.value })}
+                  >
+                    <option value={FILTER_ALL}>{t.filters.all}</option>
+                    {localOptions.map((s) => (
+                      <option key={s} value={s}>{localStateText[s] ?? s}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="awem-btn awem-btn-secondary awem-btn-compact awem-filter-reset"
+                  onClick={resetFilters}
+                  disabled={!filtersActive}
+                >{t.filters.reset}</button>
+              </div>
+            ) : null}
             {/* 工具行常驻（行高锁定 32px）：无选中显示计数提示，有选中切换为批量操作条，
                 避免批量条出现/消失把表格顶上顶下；平铺/树形切换无归属数据时隐藏 */}
             {showToolbar ? (
@@ -671,7 +861,9 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                     >{t.batch.clear}</button>
                   </div>
                 ) : (
-                  <span className="awem-hint">共 {rowCount} 个执行器</span>
+                  <span className="awem-hint">
+                    {filtersActive ? t.filters.count(filteredCount, rowCount) : t.filters.total(rowCount)}
+                  </span>
                 )}
                 {hasOwnership ? (
                   <div className="awem-segmented" role="group" aria-label={t.views.label}>
@@ -685,7 +877,7 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                 ) : null}
               </div>
             ) : null}
-            <div className="awem-table-wrap">
+            <div className="awem-table-wrap awem-overview-table-wrap" ref={wrapRef}>
               <table className={`awem-table${mode === 'tree' ? ' awem-table-tree' : ''}`}>
                 <thead>
                   <tr>
@@ -696,7 +888,7 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                         className="awem-checkbox"
                         aria-label={t.batch.selectAll}
                         checked={allSelected}
-                        disabled={locked}
+                        disabled={locked || filteredCount === 0}
                         onChange={toggleAll}
                       />
                     </th>
@@ -717,8 +909,20 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {mode === 'flat'
-                    ? rows.map((e) => (
+                  {filteredCount === 0 && filtersActive ? (
+                    <tr className="awem-filter-empty">
+                      <td colSpan={columnCount}>
+                        <div className="awem-filter-empty-cell">
+                          <span>{t.filters.empty}</span>
+                          <button
+                            className="awem-btn awem-btn-secondary awem-btn-compact"
+                            onClick={resetFilters}
+                          >{t.filters.clear}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : mode === 'flat'
+                    ? filteredRows.map((e) => (
                       <ExecutorRow
                         key={e.name}
                         e={e}
@@ -748,14 +952,14 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                               names={p.names}
                               selected={selected}
                               locked={locked}
-                              collapsed={collapsed.has(p.key)}
+                              collapsed={isCollapsed(p.key)}
                               badge={t.tree.badge(p.online, p.names.length)}
                               checkboxLabel={t.tree.projectCheckbox(p.name)}
                               colSpan={columnCount}
                               onToggleCollapsed={() => toggleCollapsed(p.key)}
                               onToggleAll={toggleGroup}
                             />
-                            {!collapsed.has(p.key) && p.squads.map((s) => (
+                            {!isCollapsed(p.key) && p.squads.map((s) => (
                               <Fragment key={s.key}>
                                 <GroupRow
                                   level={2}
@@ -765,14 +969,14 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                                   names={s.names}
                                   selected={selected}
                                   locked={locked}
-                                  collapsed={collapsed.has(s.key)}
+                                  collapsed={isCollapsed(s.key)}
                                   badge={t.tree.badge(s.online, s.names.length)}
                                   checkboxLabel={t.tree.squadCheckbox(s.name)}
                                   colSpan={columnCount}
                                   onToggleCollapsed={() => toggleCollapsed(s.key)}
                                   onToggleAll={toggleGroup}
                                 />
-                                {!collapsed.has(s.key) && s.leaves.map((e) => (
+                                {!isCollapsed(s.key) && s.leaves.map((e) => (
                                   <ExecutorRow
                                     key={`${s.key}/${e.name}`}
                                     e={e}
@@ -806,14 +1010,14 @@ function OverviewInner({ onUnauthorized }: { onUnauthorized: () => void }) {
                               names={tree.unowned.names}
                               selected={selected}
                               locked={locked}
-                              collapsed={collapsed.has('unowned')}
+                              collapsed={isCollapsed('unowned')}
                               badge={t.tree.unownedBadge(tree.unowned.names.length)}
                               checkboxLabel={t.tree.unownedCheckbox}
                               colSpan={columnCount}
                               onToggleCollapsed={() => toggleCollapsed('unowned')}
                               onToggleAll={toggleGroup}
                             />
-                            {!collapsed.has('unowned') && tree.unowned.leaves.map((e) => (
+                            {!isCollapsed('unowned') && tree.unowned.leaves.map((e) => (
                               <ExecutorRow
                                 key={`unowned/${e.name}`}
                                 e={e}

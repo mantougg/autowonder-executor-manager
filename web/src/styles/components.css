@@ -104,6 +104,25 @@
   border: 1px solid var(--awem-border);
   border-radius: var(--awem-radius-card);
 }
+
+/* 总览列表：表体最大高度=视口剩余空间（行内 JS 精确计算；此处为 dvh 回退）。
+   仅表体滚动，表头吸顶；行数少时自然高度，不产生空滚动区。 */
+.awem-overview-table-wrap {
+  overflow: auto;
+  max-height: calc(100dvh - 340px);
+}
+@supports not (height: 100dvh) {
+  .awem-overview-table-wrap {
+    max-height: calc(100vh - 340px);
+  }
+}
+.awem-overview-table-wrap .awem-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--awem-bg-subtle);
+  box-shadow: inset 0 -1px 0 var(--awem-border);
+}
 .awem-table {
   width: 100%;
   border-collapse: collapse;
@@ -461,6 +480,59 @@
 .awem-segmented button:focus-visible {
   outline: 2px solid var(--awem-accent);
   outline-offset: -2px;
+}
+
+/* --- 总览查询条件行（表格滚动容器之外；≤768px 允许换行） --- */
+.awem-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--awem-space-3);
+  margin-bottom: var(--awem-space-3);
+}
+.awem-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--awem-space-1);
+}
+.awem-filter-label {
+  font-size: var(--awem-text-12);
+  color: var(--awem-fg-secondary);
+}
+.awem-filter-control {
+  height: 32px;
+  padding: 0 var(--awem-space-2);
+  font-size: var(--awem-text-13);
+}
+.awem-filter-name .awem-filter-control {
+  width: 220px;
+}
+.awem-filter-field .awem-select {
+  min-width: 132px;
+}
+.awem-filter-reset {
+  flex: none;
+}
+@media (max-width: 768px) {
+  .awem-filter-field {
+    flex: 1 1 140px;
+  }
+  .awem-filter-name {
+    flex-basis: 100%;
+  }
+  .awem-filter-name .awem-filter-control {
+    width: 100%;
+  }
+}
+
+/* 无命中空态（保留表头与筛选行） */
+.awem-filter-empty-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--awem-space-3);
+  padding: var(--awem-space-8) var(--awem-space-4);
+  color: var(--awem-fg-secondary);
 }
 
 /* --- 树形列表（组行 44px；缩进由行内 style 按 16px/级） --- */

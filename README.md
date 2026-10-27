@@ -6,6 +6,25 @@
 **状态**：v1 功能开发完成（70/71 功能点检查通过；余量见下），可用。
 进度与检查记录见[开发任务索引](docs/task-awem-dev/index.md)。
 
+## 界面预览
+
+<table>
+  <tr>
+    <td width="33%" align="center" valign="top">
+      <a href="docs/images/overview-list.png"><img src="docs/images/overview-list.png" alt="总览页平铺列表" width="100%"></a>
+      <br><sub>总览·平铺</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="docs/images/overview-tree.png"><img src="docs/images/overview-tree.png" alt="总览页树形列表" width="100%"></a>
+      <br><sub>总览·树形</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <a href="docs/images/settings.png"><img src="docs/images/settings.png" alt="设置页" width="100%"></a>
+      <br><sub>设置</sub>
+    </td>
+  </tr>
+</table>
+
 ## 为什么需要 awem
 
 AutoWonder 执行器本质是一个长驻进程（`npx -y autowonder@<ver> connect …`，WebSocket 连平台领任务）。此前每台机器靠一份手工 bash 脚本管理，痛点集中：
